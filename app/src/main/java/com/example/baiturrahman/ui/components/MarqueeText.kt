@@ -12,10 +12,13 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
 @Composable
-fun MarqueeText(modifier: Modifier = Modifier) {
+fun MarqueeText(
+    modifier: Modifier = Modifier,
+    text: String = "Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text",
+) {
     var offset by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(text) {
         while(true) {
             delay(50)
             offset -= 2f
@@ -30,7 +33,7 @@ fun MarqueeText(modifier: Modifier = Modifier) {
             .height(40.dp)
     ) {
         Text(
-            text = "Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text",
+            text = text,
             color = Color.White,
             fontSize = 20.sp,
             textAlign = TextAlign.Left,

@@ -14,7 +14,9 @@ import androidx.compose.ui.unit.sp
 import com.example.baiturrahman.ui.theme.emeraldGreen
 
 @Composable
-fun QuoteBox() {
+fun QuoteBox(
+    quote: String = "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec vel egestas dolor, nec dignissim metus.\""
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -22,7 +24,7 @@ fun QuoteBox() {
             .padding(16.dp)
     ) {
         Text(
-            text = "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec vel egestas dolor, nec dignissim metus.\"",
+            text = quote,
             color = Color.White,
             textAlign = TextAlign.Center,
             fontSize = 20.sp,
