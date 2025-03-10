@@ -9,7 +9,13 @@
         android:name="android.software.leanback"
         android:required="false" />
     <uses-permission
-        android:name = "android.permission.INTERNET" />
+        android:name="android.permission.INTERNET" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <application
         android:name=".BaiturrahmanApp"
         android:allowBackup="true"
