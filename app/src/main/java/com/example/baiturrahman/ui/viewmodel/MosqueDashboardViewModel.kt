@@ -18,15 +18,15 @@ class MosqueDashboardViewModel(
 
     // Default prayer timings to show before API loads
     private val defaultPrayerTimings = PrayerTimings(
-        Fajr = "04:40",
-        Sunrise = "05:58",
-        Dhuhr = "12:06",
-        Asr = "15:14",
-        Sunset = "18:14",
-        Maghrib = "18:14",
-        Isha = "19:25",
-        Imsak = "04:30",
-        Midnight = "00:06"
+        Fajr = "XX:XX",
+        Sunrise = "XX:XX",
+        Dhuhr = "XX:XX",
+        Asr = "XX:XX",
+        Sunset = "XX:XX",
+        Maghrib = "XX:XX",
+        Isha = "XX:XX",
+        Imsak = "XX:XX",
+        Midnight = "XX:XX"
     )
 
     private val _uiState = MutableStateFlow(MosqueDashboardUiState())
@@ -56,6 +56,21 @@ class MosqueDashboardViewModel(
     private val _currentImageIndex = MutableStateFlow(0)
     val currentImageIndex: StateFlow<Int> = _currentImageIndex
 
+    // Prayer API settings
+    private val _prayerAddress = MutableStateFlow("Lebak Bulus, Jakarta, ID")
+    val prayerAddress: StateFlow<String> = _prayerAddress
+
+    private val _prayerTimezone = MutableStateFlow("Asia/Jakarta")
+    val prayerTimezone: StateFlow<String> = _prayerTimezone
+
+    // Available timezones
+    val availableTimezones = listOf(
+        "Asia/Jakarta",
+        "Asia/Pontianak",
+        "Asia/Makassar",
+        "Asia/Jayapura"
+    )
+
     init {
         fetchPrayerTimes()
         startImageSlider()
@@ -76,7 +91,10 @@ class MosqueDashboardViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
-            repository.getPrayerTimes().fold(
+            repository.getPrayerTimes(
+                address = _prayerAddress.value,
+                timezone = _prayerTimezone.value
+            ).fold(
                 onSuccess = { prayerData ->
                     _uiState.value = _uiState.value.copy(
                         prayerData = prayerData,
@@ -139,6 +157,19 @@ class MosqueDashboardViewModel(
     fun setCurrentImageIndex(index: Int) {
         if (index in _mosqueImages.value.indices) {
             _currentImageIndex.value = index
+        }
+    }
+
+    // Update prayer API settings
+    fun updatePrayerAddress(address: String) {
+        _prayerAddress.value = address
+        fetchPrayerTimes() // Refresh prayer times with new address
+    }
+
+    fun updatePrayerTimezone(timezone: String) {
+        if (timezone in availableTimezones) {
+            _prayerTimezone.value = timezone
+            fetchPrayerTimes() // Refresh prayer times with new timezone
         }
     }
 

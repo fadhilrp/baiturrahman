@@ -1,11 +1,15 @@
 package com.example.baiturrahman.ui.components
 
+import android.content.Context
+import android.media.MediaPlayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,21 +19,43 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.baiturrahman.R
 import com.example.baiturrahman.data.model.PrayerTimings
 import com.example.baiturrahman.ui.theme.emeraldGreen
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.temporal.ChronoUnit
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun NextPrayerCountdown(
     timings: PrayerTimings?,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
+    var isIqomahTime by remember { mutableStateOf(false) }
+    var currentPrayerName by remember { mutableStateOf("") }
+    var iqomahEndTime by remember { mutableStateOf<LocalTime?>(null) }
+    var shouldPlayPrayerAlarm by remember { mutableStateOf(false) }
+    var shouldPlayIqomahAlarm by remember { mutableStateOf(false) }
+
+    // MediaPlayer instances for alarms
+    val prayerAlarmPlayer = remember { MediaPlayer.create(context, R.raw.prayer_alarm) }
+    val iqomahAlarmPlayer = remember { MediaPlayer.create(context, R.raw.iqomah_alarm) }
+
+    // Clean up MediaPlayer when component is disposed
+    DisposableEffect(Unit) {
+        onDispose {
+            prayerAlarmPlayer.release()
+            iqomahAlarmPlayer.release()
+        }
+    }
 
     // Update current time every second
     LaunchedEffect(Unit) {
@@ -46,16 +72,23 @@ fun NextPrayerCountdown(
         currentTime.second
     )
 
-    // Create a map of prayer times
+    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
     val prayerTimes = mapOf(
-        "Imsak" to (timings?.Imsak?.substringBefore(" ") ?: "04:25"),
-        "Shubuh" to (timings?.Fajr?.substringBefore(" ") ?: "04:35"),
-        "Syuruq" to (timings?.Sunrise?.substringBefore(" ") ?: "05:57"),
-        "Dhuha" to "06:22",
-        "Dzuhur" to (timings?.Dhuhr?.substringBefore(" ") ?: "12:13"),
-        "Ashar" to (timings?.Asr?.substringBefore(" ") ?: "15:34"),
-        "Maghrib" to (timings?.Maghrib?.substringBefore(" ") ?: "18:04"),
-        "Isya" to (timings?.Isha?.substringBefore(" ") ?: "19:18")
+        "Imsak" to (timings?.Imsak?.substringBefore(" ") ?: "XX:XX"),
+        "Shubuh" to (timings?.Fajr?.substringBefore(" ") ?: "XX:XX"),
+        "Syuruq" to (timings?.Sunrise?.substringBefore(" ") ?: "XX:XX"),
+        "Dhuha" to (timings?.Sunrise?.substringBefore(" ")?.let {
+            try {
+                LocalTime.parse(it, timeFormatter).plusMinutes(15).format(timeFormatter)
+            } catch (e: Exception) {
+                "XX:XX"
+            }
+        }  ?: "XX:XX"),
+        "Dzuhur" to (timings?.Dhuhr?.substringBefore(" ") ?: "XX:XX"),
+        "Ashar" to (timings?.Asr?.substringBefore(" ") ?: "XX:XX"),
+        "Maghrib" to (timings?.Maghrib?.substringBefore(" ") ?: "XX:XX"),
+        "Isya" to (timings?.Isha?.substringBefore(" ") ?: "XX:XX")
     )
 
     // Order of prayer times for comparison
@@ -70,12 +103,74 @@ fun NextPrayerCountdown(
         }
     }
 
-    // Find current and next prayer
-    val (currentPrayer, nextPrayer) = findCurrentAndNextPrayer(currentTimeObj, prayerTimeObjects, orderedPrayers)
+    // Check if we're in iqomah period or if we just hit a prayer time
+    LaunchedEffect(currentTimeObj) {
+        // If we have an iqomah end time set, check if we're still in iqomah period
+        if (iqomahEndTime != null) {
+            if (currentTimeObj.isAfter(iqomahEndTime) || currentTimeObj == iqomahEndTime) {
+                // Iqomah period is over
+                isIqomahTime = false
+                iqomahEndTime = null
+                shouldPlayIqomahAlarm = true
+            }
+        } else {
+            // Check if we just hit a prayer time
+            for ((prayerName, prayerTime) in prayerTimeObjects) {
+                if (prayerTime != null &&
+                    // Skip Syuruq and Dhuha as they don't have iqomah
+                    prayerName != "Syuruq" && prayerName != "Dhuha" && prayerName != "Imsak" &&
+                    // Check if we're exactly at the prayer time or just passed it (within 1 second)
+                    (currentTimeObj == prayerTime ||
+                            (currentTimeObj.isAfter(prayerTime) &&
+                                    ChronoUnit.SECONDS.between(prayerTime, currentTimeObj) < 2))) {
 
-    // Calculate time remaining until next prayer
-    val timeRemaining = calculateTimeRemaining(currentTimeObj, prayerTimeObjects[nextPrayer] ?: LocalTime.MIDNIGHT)
+                    // We just hit a prayer time, start iqomah countdown
+                    isIqomahTime = true
+                    currentPrayerName = prayerName
+                    // Set iqomah end time to 10 minutes after prayer time
+                    iqomahEndTime = prayerTime.plusMinutes(10)
+                    shouldPlayPrayerAlarm = true
+                    break
+                }
+            }
+        }
+    }
 
+    // Play prayer alarm when needed
+    LaunchedEffect(shouldPlayPrayerAlarm) {
+        if (shouldPlayPrayerAlarm) {
+            playAlarmSound(context, prayerAlarmPlayer)
+            shouldPlayPrayerAlarm = false
+        }
+    }
+
+    // Play iqomah alarm when needed
+    LaunchedEffect(shouldPlayIqomahAlarm) {
+        if (shouldPlayIqomahAlarm) {
+            playAlarmSound(context, iqomahAlarmPlayer)
+            shouldPlayIqomahAlarm = false
+        }
+    }
+
+    // Find current and next prayer if not in iqomah time
+    val (currentPrayer, nextPrayer) = if (!isIqomahTime) {
+        findCurrentAndNextPrayer(currentTimeObj, prayerTimeObjects, orderedPrayers)
+    } else {
+        Pair(currentPrayerName, currentPrayerName)
+    }
+
+    // Calculate time remaining
+    val displayText = if (isIqomahTime) {
+        // Calculate time remaining until iqomah ends
+        val timeRemaining = calculateTimeRemaining(currentTimeObj, iqomahEndTime ?: LocalTime.MIDNIGHT)
+        "Iqomah $currentPrayerName $timeRemaining"
+    } else {
+        // Calculate time remaining until next prayer
+        val timeRemaining = calculateTimeRemaining(currentTimeObj, prayerTimeObjects[nextPrayer] ?: LocalTime.MIDNIGHT)
+        "$nextPrayer $timeRemaining"
+    }
+
+    // UI for countdown
     Box(
         modifier = modifier
             .clip(
@@ -86,16 +181,31 @@ fun NextPrayerCountdown(
                     bottomEnd = 0.dp
                 )
             )
-            .background(Color.White.copy(alpha = 0.9f))
+            .background(if (isIqomahTime) Color.Yellow.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.9f))
             .padding(horizontal = 32.dp, vertical = 16.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "$nextPrayer $timeRemaining",
-            color = emeraldGreen,
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = displayText,
+                color = if (isIqomahTime) Color.Black else emeraldGreen,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+            )
+
+        }
+    }
+}
+
+private fun playAlarmSound(context: Context, mediaPlayer: MediaPlayer) {
+    try {
+        if (mediaPlayer.isPlaying) {
+            mediaPlayer.stop()
+            mediaPlayer.prepare()
+        }
+        mediaPlayer.start()
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 }
 
@@ -125,16 +235,16 @@ private fun findCurrentAndNextPrayer(
     return Pair(currentPrayer, nextPrayer)
 }
 
-private fun calculateTimeRemaining(currentTime: LocalTime, nextPrayerTime: LocalTime): String {
-    var nextTimeSeconds = nextPrayerTime.toSecondOfDay()
+private fun calculateTimeRemaining(currentTime: LocalTime, targetTime: LocalTime): String {
+    var targetTimeSeconds = targetTime.toSecondOfDay()
     val currentTimeSeconds = currentTime.toSecondOfDay()
 
-    // If next prayer is tomorrow (e.g., current time is after Isya, next is Imsak)
-    if (nextTimeSeconds < currentTimeSeconds) {
-        nextTimeSeconds += 24 * 60 * 60 // Add 24 hours in seconds
+    // If target time is tomorrow (e.g., current time is after Isya, next is Imsak)
+    if (targetTimeSeconds < currentTimeSeconds) {
+        targetTimeSeconds += 24 * 60 * 60 // Add 24 hours in seconds
     }
 
-    val diffSeconds = nextTimeSeconds - currentTimeSeconds
+    val diffSeconds = targetTimeSeconds - currentTimeSeconds
 
     // Format as -HH:MM:SS
     val hours = diffSeconds / 3600
