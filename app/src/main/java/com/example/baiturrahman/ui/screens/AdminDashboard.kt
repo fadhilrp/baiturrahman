@@ -451,12 +451,22 @@ fun AdminDashboard(
             // Save Button
             Button(
                 onClick = {
+                    // Update ViewModel values
                     viewModel.updateQuoteText(quoteText)
                     viewModel.updateMosqueName(mosqueName)
                     viewModel.updateMosqueLocation(mosqueLocation)
                     viewModel.updateMarqueeText(marqueeText)
                     viewModel.updatePrayerAddress(prayerAddress)
                     viewModel.updatePrayerTimezone(prayerTimezone)
+
+                    // Save all settings to database
+                    viewModel.saveAllSettings()
+
+                    // Show confirmation message
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Settings saved successfully")
+                    }
+
                     onClose()
                 },
                 colors = ButtonDefaults.buttonColors(

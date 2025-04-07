@@ -17,7 +17,6 @@ import androidx.compose.ui.unit.sp
 import com.example.baiturrahman.R
 import com.example.baiturrahman.data.model.PrayerTimings
 import com.example.baiturrahman.ui.theme.emeraldGreen
-import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -25,6 +24,7 @@ import java.time.temporal.ChronoUnit
 
 @Composable
 fun PrayerTimesGrid(timings: PrayerTimings?) {
+
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
     var isIqomahTime by remember { mutableStateOf(false) }
@@ -42,13 +42,6 @@ fun PrayerTimesGrid(timings: PrayerTimings?) {
         onDispose {
             prayerAlarmPlayer.release()
             iqomahAlarmPlayer.release()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        while(true) {
-            currentTime = LocalDateTime.now()
-            delay(1000)
         }
     }
 
@@ -199,7 +192,16 @@ private fun PrayerTimeCell(
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold
         )
-
+        
+        if (isIqomahTime) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "IQOMAH",
+                color = Color.Black,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 

@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -253,4 +254,3 @@ private fun calculateTimeRemaining(currentTime: LocalTime, targetTime: LocalTime
 
     return String.format("-%02d:%02d:%02d", hours, minutes, seconds)
 }
-
