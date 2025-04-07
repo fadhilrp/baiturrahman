@@ -44,6 +44,7 @@ fun PrayerTimesGrid(timings: PrayerTimings?) {
             iqomahAlarmPlayer.release()
         }
     }
+
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
     val currentTimeFormatted = currentTime.format(DateTimeFormatter.ofPattern("HH:mm"))
     val currentTimeObj = LocalTime.parse(currentTimeFormatted)
@@ -191,7 +192,7 @@ private fun PrayerTimeCell(
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold
         )
-
+        
         if (isIqomahTime) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(

@@ -77,7 +77,7 @@ class MosqueDashboardViewModel(
 
     // Database image IDs (to keep track for deletion)
     private val imageIdMap = mutableMapOf<String, Int>()
-
+    
     init {
         loadSavedSettings()
         fetchPrayerTimes()
@@ -136,6 +136,7 @@ class MosqueDashboardViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true)
 
             prayerTimeRepository.getPrayerTimes(
+
                 address = _prayerAddress.value,
                 timezone = _prayerTimezone.value
             ).fold(
