@@ -10,13 +10,17 @@ import java.time.format.DateTimeFormatter
 class PrayerTimeRepository {
     private val api = RetrofitClient.prayerTimeService
 
-    suspend fun getPrayerTimes(address: String = "Lebak Bulus, Jakarta, ID"): Result<PrayerData> {
+    suspend fun getPrayerTimes(
+        address: String = "Lebak Bulus, Jakarta, ID",
+        timezone: String = "Asia/Jakarta"
+    ): Result<PrayerData> {
         return withContext(Dispatchers.IO) {
             try {
                 val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
                 val response = api.getPrayerTimes(
                     date = today,
-                    address = address
+                    address = address,
+                    timezone = timezone
                 )
                 Result.success(response.data)
             } catch (e: Exception) {

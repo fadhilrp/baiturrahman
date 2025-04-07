@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
@@ -36,6 +38,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -86,6 +90,11 @@ fun AdminDashboard(
     var mosqueLocation by remember { mutableStateOf(viewModel.mosqueLocation.value) }
     var marqueeText by remember { mutableStateOf(viewModel.marqueeText.value) }
     val mosqueImages by viewModel.mosqueImages.collectAsState()
+
+    // Prayer API settings
+    var prayerAddress by remember { mutableStateOf(viewModel.prayerAddress.value) }
+    var prayerTimezone by remember { mutableStateOf(viewModel.prayerTimezone.value) }
+    var timezoneMenuExpanded by remember { mutableStateOf(false) }
 
     // Image picker launchers
     val logoImageLauncher = rememberLauncherForActivityResult(
@@ -249,6 +258,70 @@ fun AdminDashboard(
                 }
             )
 
+            // Prayer API Settings Section
+            AdminSection(
+                title = "Prayer Times Settings",
+                content = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Address Input
+                        OutlinedTextField(
+                            value = prayerAddress,
+                            onValueChange = { prayerAddress = it },
+                            label = { Text("Prayer Times Address") },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("e.g., Lebak Bulus, Jakarta, ID") }
+                        )
+
+                        // Timezone Dropdown
+                        Column {
+                            Text(
+                                text = "Timezone:",
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+
+                            Box(
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .border(1.dp, Color.Gray, RoundedCornerShape(4.dp))
+                                        .clickable { timezoneMenuExpanded = true }
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(prayerTimezone)
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Select Timezone"
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = timezoneMenuExpanded,
+                                    onDismissRequest = { timezoneMenuExpanded = false },
+                                    modifier = Modifier.fillMaxWidth(0.9f)
+                                ) {
+                                    viewModel.availableTimezones.forEach { timezone ->
+                                        DropdownMenuItem(
+                                            text = { Text(timezone) },
+                                            onClick = {
+                                                prayerTimezone = timezone
+                                                timezoneMenuExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            )
+
             // Quote Section
             AdminSection(
                 title = "Quote Settings",
@@ -378,10 +451,22 @@ fun AdminDashboard(
             // Save Button
             Button(
                 onClick = {
+                    // Update ViewModel values
                     viewModel.updateQuoteText(quoteText)
                     viewModel.updateMosqueName(mosqueName)
                     viewModel.updateMosqueLocation(mosqueLocation)
                     viewModel.updateMarqueeText(marqueeText)
+                    viewModel.updatePrayerAddress(prayerAddress)
+                    viewModel.updatePrayerTimezone(prayerTimezone)
+
+                    // Save all settings to database
+                    viewModel.saveAllSettings()
+
+                    // Show confirmation message
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Settings saved successfully")
+                    }
+
                     onClose()
                 },
                 colors = ButtonDefaults.buttonColors(

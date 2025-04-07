@@ -13,7 +13,7 @@ interface PrayerTimeService {
         @Query("address") address: String,
         @Query("method") method: Int = 20,
         @Query("shafaq") shafaq: String = "general",
-        @Query("timezonestring") timezone: String = "Asia/Jakarta",
+        @Query("timezonestring") timezone: String,
         @Query("calendarMethod") calendarMethod: String = "UAQ"
     ): PrayerResponse
 }

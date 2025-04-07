@@ -1,32 +1,36 @@
 package com.example.baiturrahman.ui.viewmodel
 
-import android.net.Uri
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.data.model.PrayerTimings
+import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.data.repository.PrayerTimeRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class MosqueDashboardViewModel(
-    private val repository: PrayerTimeRepository
+    private val prayerTimeRepository: PrayerTimeRepository,
+    private val settingsRepository: MosqueSettingsRepository,
+    private val application: Application
 ) : ViewModel() {
 
     // Default prayer timings to show before API loads
     private val defaultPrayerTimings = PrayerTimings(
-        Fajr = "04:40",
-        Sunrise = "05:58",
-        Dhuhr = "12:06",
-        Asr = "15:14",
-        Sunset = "18:14",
-        Maghrib = "18:14",
-        Isha = "19:25",
-        Imsak = "04:30",
-        Midnight = "00:06"
+        Fajr = "XX:XX",
+        Sunrise = "XX:XX",
+        Dhuhr = "XX:XX",
+        Asr = "XX:XX",
+        Sunset = "XX:XX",
+        Maghrib = "XX:XX",
+        Isha = "XX:XX",
+        Imsak = "XX:XX",
+        Midnight = "XX:XX"
     )
 
     private val _uiState = MutableStateFlow(MosqueDashboardUiState())
@@ -56,9 +60,64 @@ class MosqueDashboardViewModel(
     private val _currentImageIndex = MutableStateFlow(0)
     val currentImageIndex: StateFlow<Int> = _currentImageIndex
 
+    // Prayer API settings
+    private val _prayerAddress = MutableStateFlow("Lebak Bulus, Jakarta, ID")
+    val prayerAddress: StateFlow<String> = _prayerAddress
+
+    private val _prayerTimezone = MutableStateFlow("Asia/Jakarta")
+    val prayerTimezone: StateFlow<String> = _prayerTimezone
+
+    // Available timezones
+    val availableTimezones = listOf(
+        "Asia/Jakarta",
+        "Asia/Pontianak",
+        "Asia/Makassar",
+        "Asia/Jayapura"
+    )
+
+    // Database image IDs (to keep track for deletion)
+    private val imageIdMap = mutableMapOf<String, Int>()
+
     init {
+        loadSavedSettings()
         fetchPrayerTimes()
         startImageSlider()
+    }
+
+    private fun loadSavedSettings() {
+        viewModelScope.launch {
+            // Load settings
+            settingsRepository.mosqueSettings.collectLatest { settings ->
+                settings?.let {
+                    _mosqueName.value = it.mosqueName
+                    _mosqueLocation.value = it.mosqueLocation
+                    _logoImage.value = it.logoImage
+                    _prayerAddress.value = it.prayerAddress
+                    _prayerTimezone.value = it.prayerTimezone
+                    _quoteText.value = it.quoteText
+                    _marqueeText.value = it.marqueeText
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            // Load images
+            settingsRepository.mosqueImages.collectLatest { images ->
+                val imageUris = images.sortedBy { it.displayOrder }.map { it.imageUri }
+                _mosqueImages.value = imageUris
+
+                // Update image ID map
+                imageIdMap.clear()
+                images.forEach { image ->
+                    imageIdMap[image.imageUri] = image.id
+                }
+
+                // Reset current index if needed
+                if (_currentImageIndex.value >= imageUris.size && imageUris.isNotEmpty()) {
+                    _currentImageIndex.value = 0
+                }
+            }
+        }
     }
 
     private fun startImageSlider() {
@@ -76,7 +135,10 @@ class MosqueDashboardViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
-            repository.getPrayerTimes().fold(
+            prayerTimeRepository.getPrayerTimes(
+                address = _prayerAddress.value,
+                timezone = _prayerTimezone.value
+            ).fold(
                 onSuccess = { prayerData ->
                     _uiState.value = _uiState.value.copy(
                         prayerData = prayerData,
@@ -90,6 +152,21 @@ class MosqueDashboardViewModel(
                         errorMessage = "Failed to fetch prayer times: ${error.message}"
                     )
                 }
+            )
+        }
+    }
+
+    // Save all settings to database
+    fun saveAllSettings() {
+        viewModelScope.launch {
+            settingsRepository.saveSettings(
+                mosqueName = _mosqueName.value,
+                mosqueLocation = _mosqueLocation.value,
+                logoImage = _logoImage.value,
+                prayerAddress = _prayerAddress.value,
+                prayerTimezone = _prayerTimezone.value,
+                quoteText = _quoteText.value,
+                marqueeText = _marqueeText.value
             )
         }
     }
@@ -118,20 +195,19 @@ class MosqueDashboardViewModel(
     // Functions for mosque image slider
     fun addMosqueImage(uri: String) {
         if (_mosqueImages.value.size < 5) {
-            _mosqueImages.value += uri
+            viewModelScope.launch {
+                settingsRepository.addMosqueImage(uri)
+            }
         }
     }
 
     fun removeMosqueImage(index: Int) {
         if (index in _mosqueImages.value.indices) {
-            val newList = _mosqueImages.value.toMutableList().apply {
-                removeAt(index)
-            }
-            _mosqueImages.value = newList
+            val imageUri = _mosqueImages.value[index]
+            val imageId = imageIdMap[imageUri] ?: return
 
-            // Adjust current index if needed
-            if (_currentImageIndex.value >= _mosqueImages.value.size) {
-                _currentImageIndex.value = maxOf(0, _mosqueImages.value.size - 1)
+            viewModelScope.launch {
+                settingsRepository.removeMosqueImage(imageId)
             }
         }
     }
@@ -139,6 +215,19 @@ class MosqueDashboardViewModel(
     fun setCurrentImageIndex(index: Int) {
         if (index in _mosqueImages.value.indices) {
             _currentImageIndex.value = index
+        }
+    }
+
+    // Update prayer API settings
+    fun updatePrayerAddress(address: String) {
+        _prayerAddress.value = address
+        fetchPrayerTimes() // Refresh prayer times with new address
+    }
+
+    fun updatePrayerTimezone(timezone: String) {
+        if (timezone in availableTimezones) {
+            _prayerTimezone.value = timezone
+            fetchPrayerTimes() // Refresh prayer times with new timezone
         }
     }
 

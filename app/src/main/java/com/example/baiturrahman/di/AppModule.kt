@@ -1,15 +1,24 @@
 package com.example.baiturrahman.di
 
+import com.example.baiturrahman.data.local.AppDatabase
+import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.data.repository.PrayerTimeRepository
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
+import org.koin.android.ext.koin.androidApplication
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
-    // Single instances
+    // Database
+    single { AppDatabase.getDatabase(androidApplication()) }
+    single { get<AppDatabase>().mosqueSettingsDao() }
+    single { get<AppDatabase>().mosqueImageDao() }
+
+    // Repositories
     single { PrayerTimeRepository() }
+    single { MosqueSettingsRepository(get(), get()) }
 
     // ViewModels
-    viewModel { MosqueDashboardViewModel(get()) }
+    viewModel { MosqueDashboardViewModel(get(), get(), androidApplication()) }
 }
 
