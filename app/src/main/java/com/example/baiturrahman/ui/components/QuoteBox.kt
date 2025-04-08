@@ -2,6 +2,7 @@ package com.example.baiturrahman.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -20,6 +21,7 @@ fun QuoteBox(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .fillMaxHeight()
             .background(emeraldGreen)
             .padding(16.dp)
     ) {

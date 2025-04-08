@@ -15,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -193,7 +192,6 @@ fun NextPrayerCountdown(
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
             )
-
         }
     }
 }
@@ -217,15 +215,34 @@ private fun findCurrentAndNextPrayer(
 ): Pair<String, String> {
     // Find the current prayer
     var currentPrayer = orderedPrayers.last()
+    var foundCurrent = false
 
-    for (i in orderedPrayers.indices.reversed()) {
-        val prayer = orderedPrayers[i]
-        val prayerTime = prayerTimes[prayer]
+    // First check if current time is after the last prayer of the day
+    val lastPrayer = orderedPrayers.last()
+    val lastPrayerTime = prayerTimes[lastPrayer]
 
-        if (prayerTime != null && !currentTime.isBefore(prayerTime)) {
-            currentPrayer = prayer
-            break
+    if (lastPrayerTime != null && !currentTime.isBefore(lastPrayerTime)) {
+        currentPrayer = lastPrayer
+        foundCurrent = true
+    }
+
+    // If not found yet, check all prayers in reverse order
+    if (!foundCurrent) {
+        for (i in orderedPrayers.indices.reversed()) {
+            val prayer = orderedPrayers[i]
+            val prayerTime = prayerTimes[prayer]
+
+            if (prayerTime != null && !currentTime.isBefore(prayerTime)) {
+                currentPrayer = prayer
+                foundCurrent = true
+                break
+            }
         }
+    }
+
+    // If still not found, default to the first prayer
+    if (!foundCurrent) {
+        currentPrayer = orderedPrayers.first()
     }
 
     // Find the next prayer
