@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -95,6 +96,12 @@ fun AdminDashboard(
     var prayerAddress by remember { mutableStateOf(viewModel.prayerAddress.value) }
     var prayerTimezone by remember { mutableStateOf(viewModel.prayerTimezone.value) }
     var timezoneMenuExpanded by remember { mutableStateOf(false) }
+
+    // Character count states
+    val mosqueNameCharCount = mosqueName.length
+    val mosqueLocationCharCount = mosqueLocation.length
+    val quoteTextCharCount = quoteText.length
+    val marqueeTextCharCount = marqueeText.length
 
     // Image picker launchers
     val logoImageLauncher = rememberLauncherForActivityResult(
@@ -191,20 +198,42 @@ fun AdminDashboard(
                     Column(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Mosque Name
+                        // Mosque Name with character limit
                         OutlinedTextField(
                             value = mosqueName,
-                            onValueChange = { mosqueName = it },
+                            onValueChange = {
+                                if (it.length <= 35) mosqueName = it
+                            },
                             label = { Text("Mosque Name") },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            supportingText = {
+                                Text(
+                                    text = "$mosqueNameCharCount/35",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.End,
+                                    color = if (mosqueNameCharCount >= 35) Color.Red else Color.Gray
+                                )
+                            },
+                            isError = mosqueNameCharCount >= 35
                         )
 
-                        // Mosque Location
+                        // Mosque Location with character limit
                         OutlinedTextField(
                             value = mosqueLocation,
-                            onValueChange = { mosqueLocation = it },
+                            onValueChange = {
+                                if (it.length <= 25) mosqueLocation = it
+                            },
                             label = { Text("Mosque Location") },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            supportingText = {
+                                Text(
+                                    text = "$mosqueLocationCharCount/25",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.End,
+                                    color = if (mosqueLocationCharCount >= 25) Color.Red else Color.Gray
+                                )
+                            },
+                            isError = mosqueLocationCharCount >= 25
                         )
 
                         // Logo Image
@@ -322,16 +351,27 @@ fun AdminDashboard(
                 }
             )
 
-            // Quote Section
+            // Quote Section with character limit
             AdminSection(
                 title = "Quote Settings",
                 content = {
                     OutlinedTextField(
                         value = quoteText,
-                        onValueChange = { quoteText = it },
+                        onValueChange = {
+                            if (it.length <= 100) quoteText = it
+                        },
                         label = { Text("Quote Text") },
                         modifier = Modifier.fillMaxWidth(),
-                        minLines = 3
+                        minLines = 3,
+                        supportingText = {
+                            Text(
+                                text = "$quoteTextCharCount/100",
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.End,
+                                color = if (quoteTextCharCount >= 100) Color.Red else Color.Gray
+                            )
+                        },
+                        isError = quoteTextCharCount >= 100
                     )
                 }
             )
@@ -435,15 +475,26 @@ fun AdminDashboard(
                 }
             )
 
-            // Marquee Text Section
+            // Marquee Text Section with character limit
             AdminSection(
                 title = "Marquee Text",
                 content = {
                     OutlinedTextField(
                         value = marqueeText,
-                        onValueChange = { marqueeText = it },
+                        onValueChange = {
+                            if (it.length <= 100) marqueeText = it
+                        },
                         label = { Text("Marquee Text") },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        supportingText = {
+                            Text(
+                                text = "$marqueeTextCharCount/100",
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.End,
+                                color = if (marqueeTextCharCount >= 100) Color.Red else Color.Gray
+                            )
+                        },
+                        isError = marqueeTextCharCount >= 100
                     )
                 }
             )
@@ -451,22 +502,12 @@ fun AdminDashboard(
             // Save Button
             Button(
                 onClick = {
-                    // Update ViewModel values
                     viewModel.updateQuoteText(quoteText)
                     viewModel.updateMosqueName(mosqueName)
                     viewModel.updateMosqueLocation(mosqueLocation)
                     viewModel.updateMarqueeText(marqueeText)
                     viewModel.updatePrayerAddress(prayerAddress)
                     viewModel.updatePrayerTimezone(prayerTimezone)
-
-                    // Save all settings to database
-                    viewModel.saveAllSettings()
-
-                    // Show confirmation message
-                    scope.launch {
-                        snackbarHostState.showSnackbar("Settings saved successfully")
-                    }
-
                     onClose()
                 },
                 colors = ButtonDefaults.buttonColors(
@@ -516,4 +557,3 @@ fun AdminSection(
         }
     }
 }
-

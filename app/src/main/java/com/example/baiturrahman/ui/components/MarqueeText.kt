@@ -13,16 +13,24 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun MarqueeText(
-    modifier: Modifier = Modifier,
-    text: String = "Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text",
+    text: String = "Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling",
 ) {
     var offset by remember { mutableFloatStateOf(0f) }
 
+    // Calculate speed based on text length
+    // Shorter text should move faster to maintain visual interest
+    val baseSpeed = 1f // Base speed (pixels per frame)
+    val speedMultiplier = maxOf(0.8f, minOf(1.5f, 100f / text.length.toFloat()))
+    val speed = baseSpeed * speedMultiplier
+
+    // Calculate reset position based on text length
+    val resetPosition = 980f // Default reset position
+
     LaunchedEffect(text) {
         while(true) {
-            delay(50)
-            offset -= 2f
-            if (offset < -2000f) offset = 800f // Reset position when text moves off screen
+            delay(14) // ~60fps
+            offset -= speed
+            if (offset < -800f) offset = resetPosition // Reset position when text moves off screen
         }
     }
 
@@ -43,4 +51,3 @@ fun MarqueeText(
         )
     }
 }
-

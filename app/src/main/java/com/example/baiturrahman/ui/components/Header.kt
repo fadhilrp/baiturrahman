@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -67,6 +68,7 @@ fun Header(
         ) {
             Text(
                 text = mosqueName,
+                textAlign = TextAlign.Center,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold
             )

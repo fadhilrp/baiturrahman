@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import com.example.baiturrahman.R
 import com.example.baiturrahman.data.model.PrayerTimings
 import com.example.baiturrahman.ui.theme.emeraldGreen
+import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -24,7 +25,6 @@ import java.time.temporal.ChronoUnit
 
 @Composable
 fun PrayerTimesGrid(timings: PrayerTimings?) {
-
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
     var isIqomahTime by remember { mutableStateOf(false) }
@@ -32,6 +32,9 @@ fun PrayerTimesGrid(timings: PrayerTimings?) {
     var iqomahEndTime by remember { mutableStateOf<LocalTime?>(null) }
     var shouldPlayPrayerAlarm by remember { mutableStateOf(false) }
     var shouldPlayIqomahAlarm by remember { mutableStateOf(false) }
+
+    // Track the current prayer for highlighting
+    var currentPrayerName by remember { mutableStateOf("") }
 
     // MediaPlayer instances for alarms
     val prayerAlarmPlayer = remember { MediaPlayer.create(context, R.raw.prayer_alarm) }
@@ -45,10 +48,24 @@ fun PrayerTimesGrid(timings: PrayerTimings?) {
         }
     }
 
-    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-    val currentTimeFormatted = currentTime.format(DateTimeFormatter.ofPattern("HH:mm"))
-    val currentTimeObj = LocalTime.parse(currentTimeFormatted)
+    // Update current time every second
+    LaunchedEffect(Unit) {
+        while(true) {
+            currentTime = LocalDateTime.now()
+            delay(1000)
+        }
+    }
 
+    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
+    // Get current time as LocalTime for comparison
+    val currentTimeObj = LocalTime.of(
+        currentTime.hour,
+        currentTime.minute,
+        currentTime.second
+    )
+
+    // Map of prayer names to their times
     val prayerTimes = mapOf(
         "Imsak" to (timings?.Imsak?.substringBefore(" ") ?: "XX:XX"),
         "Shubuh" to (timings?.Fajr?.substringBefore(" ") ?: "XX:XX"),
@@ -59,14 +76,26 @@ fun PrayerTimesGrid(timings: PrayerTimings?) {
             } catch (e: Exception) {
                 "XX:XX"
             }
-        }  ?: "XX:XX"),
+        } ?: "XX:XX"),
         "Dzuhur" to (timings?.Dhuhr?.substringBefore(" ") ?: "XX:XX"),
         "Ashar" to (timings?.Asr?.substringBefore(" ") ?: "XX:XX"),
         "Maghrib" to (timings?.Maghrib?.substringBefore(" ") ?: "XX:XX"),
         "Isya" to (timings?.Isha?.substringBefore(" ") ?: "XX:XX")
     )
 
-    // Check if we're in iqomah period
+    // Convert prayer times to LocalTime objects for comparison
+    val prayerTimeObjects = prayerTimes.mapValues { (_, timeStr) ->
+        try {
+            LocalTime.parse(timeStr)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // Order of prayer times for comparison
+    val orderedPrayers = listOf("Imsak", "Shubuh", "Syuruq", "Dhuha", "Dzuhur", "Ashar", "Maghrib", "Isya")
+
+    // Check if we're in iqomah period or if we just hit a prayer time
     LaunchedEffect(currentTimeObj) {
         // If we have an iqomah end time set, check if we're still in iqomah period
         if (iqomahEndTime != null) {
@@ -78,27 +107,60 @@ fun PrayerTimesGrid(timings: PrayerTimings?) {
             }
         } else {
             // Check if we just hit a prayer time
-            for ((prayerName, timeStr) in prayerTimes) {
-                try {
-                    val prayerTime = LocalTime.parse(timeStr)
+            for ((prayerName, prayerTime) in prayerTimeObjects) {
+                if (prayerTime != null &&
                     // Skip Syuruq and Dhuha as they don't have iqomah
-                    if (prayerName != "Syuruq" && prayerName != "Dhuha" && prayerName != "Imsak" &&
-                        // Check if we're exactly at the prayer time or just passed it (within 1 second)
-                        (currentTimeObj == prayerTime ||
-                                (currentTimeObj.isAfter(prayerTime) &&
-                                        ChronoUnit.SECONDS.between(prayerTime, currentTimeObj) < 2))) {
+                    prayerName != "Syuruq" && prayerName != "Dhuha" && prayerName != "Imsak" &&
+                    // Check if we're exactly at the prayer time or just passed it (within 1 second)
+                    (currentTimeObj == prayerTime ||
+                            (currentTimeObj.isAfter(prayerTime) &&
+                                    ChronoUnit.SECONDS.between(prayerTime, currentTimeObj) < 2))) {
 
-                        // We just hit a prayer time, start iqomah countdown
-                        isIqomahTime = true
-                        currentIqomahPrayer = prayerName
-                        // Set iqomah end time to 10 minutes after prayer time
-                        iqomahEndTime = prayerTime.plusMinutes(10)
-                        shouldPlayPrayerAlarm = true
+                    // We just hit a prayer time, start iqomah countdown
+                    isIqomahTime = true
+                    currentIqomahPrayer = prayerName
+                    currentPrayerName = prayerName
+                    // Set iqomah end time to 10 minutes after prayer time
+                    iqomahEndTime = prayerTime.plusMinutes(10)
+                    shouldPlayPrayerAlarm = true
+                    break
+                }
+            }
+        }
+    }
+
+    // Determine current prayer even when not in iqomah time
+    LaunchedEffect(currentTimeObj, isIqomahTime) {
+        if (!isIqomahTime) {
+            // Find the current prayer
+            var foundCurrent = false
+
+            // First check if current time is after the last prayer of the day
+            val lastPrayer = orderedPrayers.last()
+            val lastPrayerTime = prayerTimeObjects[lastPrayer]
+
+            if (lastPrayerTime != null && !currentTimeObj.isBefore(lastPrayerTime)) {
+                currentPrayerName = lastPrayer
+                foundCurrent = true
+            }
+
+            // If not found yet, check all prayers in reverse order
+            if (!foundCurrent) {
+                for (i in orderedPrayers.indices.reversed()) {
+                    val prayer = orderedPrayers[i]
+                    val prayerTime = prayerTimeObjects[prayer]
+
+                    if (prayerTime != null && !currentTimeObj.isBefore(prayerTime)) {
+                        currentPrayerName = prayer
+                        foundCurrent = true
                         break
                     }
-                } catch (e: Exception) {
-                    // Skip invalid time formats
                 }
+            }
+
+            // If still not found, default to the first prayer
+            if (!foundCurrent) {
+                currentPrayerName = orderedPrayers.first()
             }
         }
     }
@@ -119,12 +181,6 @@ fun PrayerTimesGrid(timings: PrayerTimings?) {
         }
     }
 
-    val currentPrayer = if (isIqomahTime) {
-        currentIqomahPrayer
-    } else {
-        determineCurrentPrayer(currentTimeObj, prayerTimes)
-    }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -134,7 +190,7 @@ fun PrayerTimesGrid(timings: PrayerTimings?) {
             PrayerTimeCell(
                 name = name,
                 time = time,
-                isCurrentPrayer = name == currentPrayer,
+                isCurrentPrayer = name == currentPrayerName,
                 isIqomahTime = isIqomahTime && name == currentIqomahPrayer,
                 modifier = Modifier.weight(1f)
             )
@@ -192,51 +248,5 @@ private fun PrayerTimeCell(
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold
         )
-        
-        if (isIqomahTime) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "IQOMAH",
-                color = Color.Black,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
     }
 }
-
-private fun determineCurrentPrayer(currentTime: LocalTime, prayerTimes: Map<String, String>): String {
-    val prayerTimeObjects = prayerTimes.mapValues { (_, timeStr) ->
-        try {
-            LocalTime.parse(timeStr)
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    // Order of prayer times for comparison
-    val orderedPrayers = listOf("Imsak", "Shubuh", "Syuruq", "Dhuha", "Dzuhur", "Ashar", "Maghrib", "Isya")
-
-    // Check if current time is before first prayer or after last prayer
-    val firstPrayer = orderedPrayers.first()
-    val lastPrayer = orderedPrayers.last()
-
-    prayerTimeObjects[firstPrayer]?.let { firstTime ->
-        if (currentTime.isBefore(firstTime)) {
-            return lastPrayer
-        }
-    }
-
-    // Find the current prayer time
-    for (i in orderedPrayers.indices.reversed()) {
-        val prayer = orderedPrayers[i]
-        prayerTimeObjects[prayer]?.let { prayerTime ->
-            if (!currentTime.isBefore(prayerTime)) {
-                return prayer
-            }
-        }
-    }
-
-    return lastPrayer // Default to last prayer if no other matches
-}
-
