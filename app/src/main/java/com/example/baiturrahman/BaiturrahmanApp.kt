@@ -1,11 +1,20 @@
 package com.example.baiturrahman
 
 import android.app.Application
+import com.example.baiturrahman.data.remote.FirestoreSync
+import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.di.appModule
+import com.example.baiturrahman.utils.DevicePreferences
+import com.google.firebase.FirebaseApp
+import org.koin.android.ext.android.get
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 
 class BaiturrahmanApp : Application() {
+    // Make FirestoreSync accessible throughout the app
+    lateinit var firestoreSync: FirestoreSync
+        private set
+
     override fun onCreate() {
         super.onCreate()
 
@@ -13,6 +22,24 @@ class BaiturrahmanApp : Application() {
         startKoin {
             androidContext(this@BaiturrahmanApp)
             modules(appModule)
+        }
+
+        // Initialize Firebase
+        FirebaseApp.initializeApp(this)
+
+        // Initialize DevicePreferences
+        val devicePreferences = DevicePreferences(this)
+
+        // Initialize and start Firestore sync
+        val repository = get<MosqueSettingsRepository>()
+        firestoreSync = FirestoreSync(repository, devicePreferences)
+        firestoreSync.startSync()
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+        if (::firestoreSync.isInitialized) {
+            firestoreSync.stopSync()
         }
     }
 }

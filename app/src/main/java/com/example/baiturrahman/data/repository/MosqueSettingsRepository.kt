@@ -62,5 +62,17 @@ class MosqueSettingsRepository(
         mosqueSettingsDao.deleteAllSettings()
         mosqueImageDao.deleteAllImages()
     }
-}
 
+    suspend fun addMosqueImageWithId(id: Int, imageUri: String, displayOrder: Int) {
+        val image = MosqueImage(
+            id = id,
+            imageUri = imageUri,
+            displayOrder = displayOrder
+        )
+        mosqueImageDao.insertImage(image)
+    }
+
+    suspend fun clearAllImages() {
+        mosqueImageDao.deleteAllImages()
+    }
+}

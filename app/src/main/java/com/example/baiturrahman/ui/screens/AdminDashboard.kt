@@ -71,9 +71,12 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
+import com.example.baiturrahman.BaiturrahmanApp
 import com.example.baiturrahman.ui.theme.emeraldGreen
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
+import com.example.baiturrahman.utils.DevicePreferences
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -164,6 +167,13 @@ fun AdminDashboard(
             }
         }
     }
+
+    // Use koinInject() to get DevicePreferences
+    val devicePreferences = koinInject<DevicePreferences>()
+    var isMasterDevice by remember { mutableStateOf(devicePreferences.isMasterDevice) }
+    var deviceName by remember { mutableStateOf(devicePreferences.deviceName) }
+    var syncEnabled by remember { mutableStateOf(devicePreferences.syncEnabled) }
+    val firestoreSync = (context.applicationContext as BaiturrahmanApp).firestoreSync
 
     Scaffold(
         topBar = {
@@ -499,6 +509,57 @@ fun AdminDashboard(
                 }
             )
 
+            // Sync Settings Section
+            AdminSection(
+                title = "Sync Settings",
+                content = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Device Name
+                        OutlinedTextField(
+                            value = deviceName,
+                            onValueChange = { deviceName = it },
+                            label = { Text("Device Name") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // Master Device Toggle
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Master Device (can update other TVs)")
+                            androidx.compose.material3.Switch(
+                                checked = isMasterDevice,
+                                onCheckedChange = { isMasterDevice = it }
+                            )
+                        }
+
+                        // Sync Enabled Toggle
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Enable Sync")
+                            androidx.compose.material3.Switch(
+                                checked = syncEnabled,
+                                onCheckedChange = { syncEnabled = it }
+                            )
+                        }
+
+                        // Info text
+                        Text(
+                            text = "When sync is enabled, this device will receive updates from the master device. If this is the master device, changes made here will update all other TVs.",
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            )
+
             // Save Button
             Button(
                 onClick = {
@@ -508,6 +569,9 @@ fun AdminDashboard(
                     viewModel.updateMarqueeText(marqueeText)
                     viewModel.updatePrayerAddress(prayerAddress)
                     viewModel.updatePrayerTimezone(prayerTimezone)
+                    firestoreSync.setDeviceName(deviceName)
+                    firestoreSync.setMasterDevice(isMasterDevice)
+                    firestoreSync.setSyncEnabled(syncEnabled)
                     onClose()
                 },
                 colors = ButtonDefaults.buttonColors(

@@ -4,8 +4,9 @@ import com.example.baiturrahman.data.local.AppDatabase
 import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.data.repository.PrayerTimeRepository
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
+import com.example.baiturrahman.utils.DevicePreferences
 import org.koin.android.ext.koin.androidApplication
-import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
@@ -20,5 +21,6 @@ val appModule = module {
 
     // ViewModels
     viewModel { MosqueDashboardViewModel(get(), get(), androidApplication()) }
-}
 
+    single { DevicePreferences(androidApplication()) }
+}

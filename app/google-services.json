@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "817347265401",
+    "project_id": "baiturrahman-m4sj1d",
+    "storage_bucket": "baiturrahman-m4sj1d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:817347265401:android:faa45ad439d8dc0b1c25a8",
+        "android_client_info": {
+          "package_name": "com.example.baiturrahman"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCZrMrLbSJWoOlvEl4agZqnFLkae2-4Zio"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
