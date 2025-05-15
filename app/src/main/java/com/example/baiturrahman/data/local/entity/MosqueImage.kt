@@ -7,7 +7,9 @@ import androidx.room.PrimaryKey
 data class MosqueImage(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val imageUri: String,
-    val displayOrder: Int // To maintain the order of images
-)
-
+    val imageUri: String = "",
+    val displayOrder: Int = 0 // To maintain the order of images
+) {
+    // No-argument constructor required by Firestore
+    constructor() : this(0, "", 0)
+}

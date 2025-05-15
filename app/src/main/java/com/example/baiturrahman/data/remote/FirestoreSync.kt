@@ -12,7 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 import java.util.Date
 
 class FirestoreSync(
@@ -120,82 +119,94 @@ class FirestoreSync(
     }
 
     private fun listenForRemoteChanges() {
-        // Listen for settings changes
-        settingsListener = firestore.collection(SETTINGS_COLLECTION)
-            .document(SETTINGS_DOCUMENT_ID)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e(TAG, "Error listening for settings changes", error)
-                    return@addSnapshotListener
+        try {
+            // Listen for settings changes
+            settingsListener = firestore.collection(SETTINGS_COLLECTION)
+                .document(SETTINGS_DOCUMENT_ID)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e(TAG, "Error listening for settings changes", error)
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshot != null && snapshot.exists() && !isLocalUpdate) {
+                        try {
+                            val remoteSettings = snapshot.toObject(MosqueSettings::class.java)
+                            if (remoteSettings != null) {
+                                coroutineScope.launch {
+                                    try {
+                                        repository.saveSettings(
+                                            mosqueName = remoteSettings.mosqueName,
+                                            mosqueLocation = remoteSettings.mosqueLocation,
+                                            logoImage = remoteSettings.logoImage,
+                                            prayerAddress = remoteSettings.prayerAddress,
+                                            prayerTimezone = remoteSettings.prayerTimezone,
+                                            quoteText = remoteSettings.quoteText,
+                                            marqueeText = remoteSettings.marqueeText
+                                        )
+                                        Log.d(TAG, "Settings updated from Firestore")
+
+                                        // Only log if not the master device (to avoid duplicate logs)
+                                        if (!devicePreferences.isMasterDevice) {
+                                            logSyncEvent("Settings received by ${devicePreferences.deviceName}")
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error updating local settings", e)
+                                        logSyncEvent("Error updating settings: ${e.message}", isError = true)
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error deserializing settings", e)
+                        }
+                    }
                 }
 
-                if (snapshot != null && snapshot.exists() && !isLocalUpdate) {
-                    val remoteSettings = snapshot.toObject(MosqueSettings::class.java)
-                    if (remoteSettings != null) {
+            // Listen for images changes
+            imagesListener = firestore.collection(IMAGES_COLLECTION)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e(TAG, "Error listening for images changes", error)
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshot != null && !isLocalUpdate) {
                         coroutineScope.launch {
                             try {
-                                repository.saveSettings(
-                                    mosqueName = remoteSettings.mosqueName,
-                                    mosqueLocation = remoteSettings.mosqueLocation,
-                                    logoImage = remoteSettings.logoImage,
-                                    prayerAddress = remoteSettings.prayerAddress,
-                                    prayerTimezone = remoteSettings.prayerTimezone,
-                                    quoteText = remoteSettings.quoteText,
-                                    marqueeText = remoteSettings.marqueeText
-                                )
-                                Log.d(TAG, "Settings updated from Firestore")
+                                // Clear existing images
+                                repository.clearAllImages()
+
+                                // Add new images from Firestore
+                                for (doc in snapshot.documents) {
+                                    try {
+                                        val remoteImage = doc.toObject(MosqueImage::class.java)
+                                        if (remoteImage != null) {
+                                            repository.addMosqueImageWithId(
+                                                id = remoteImage.id,
+                                                imageUri = remoteImage.imageUri,
+                                                displayOrder = remoteImage.displayOrder
+                                            )
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error deserializing image: ${doc.id}", e)
+                                    }
+                                }
+                                Log.d(TAG, "Images updated from Firestore: ${snapshot.size()} images")
 
                                 // Only log if not the master device (to avoid duplicate logs)
                                 if (!devicePreferences.isMasterDevice) {
-                                    logSyncEvent("Settings received by ${devicePreferences.deviceName}")
+                                    logSyncEvent("${snapshot.size()} images received by ${devicePreferences.deviceName}")
                                 }
                             } catch (e: Exception) {
-                                Log.e(TAG, "Error updating local settings", e)
-                                logSyncEvent("Error updating settings: ${e.message}", isError = true)
+                                Log.e(TAG, "Error updating local images", e)
+                                logSyncEvent("Error updating images: ${e.message}", isError = true)
                             }
                         }
                     }
                 }
-            }
-
-        // Listen for images changes
-        imagesListener = firestore.collection(IMAGES_COLLECTION)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e(TAG, "Error listening for images changes", error)
-                    return@addSnapshotListener
-                }
-
-                if (snapshot != null && !isLocalUpdate) {
-                    coroutineScope.launch {
-                        try {
-                            // Clear existing images
-                            repository.clearAllImages()
-
-                            // Add new images from Firestore
-                            for (doc in snapshot.documents) {
-                                val remoteImage = doc.toObject(MosqueImage::class.java)
-                                if (remoteImage != null) {
-                                    repository.addMosqueImageWithId(
-                                        id = remoteImage.id,
-                                        imageUri = remoteImage.imageUri,
-                                        displayOrder = remoteImage.displayOrder
-                                    )
-                                }
-                            }
-                            Log.d(TAG, "Images updated from Firestore: ${snapshot.size()} images")
-
-                            // Only log if not the master device (to avoid duplicate logs)
-                            if (!devicePreferences.isMasterDevice) {
-                                logSyncEvent("${snapshot.size()} images received by ${devicePreferences.deviceName}")
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error updating local images", e)
-                            logSyncEvent("Error updating images: ${e.message}", isError = true)
-                        }
-                    }
-                }
-            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up Firestore listeners", e)
+        }
     }
 
     private fun listenForLocalChanges() {

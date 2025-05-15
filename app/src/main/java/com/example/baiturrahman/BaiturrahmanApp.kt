@@ -1,6 +1,7 @@
 package com.example.baiturrahman
 
 import android.app.Application
+import android.util.Log
 import com.example.baiturrahman.data.remote.FirestoreSync
 import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.di.appModule
@@ -24,16 +25,20 @@ class BaiturrahmanApp : Application() {
             modules(appModule)
         }
 
-        // Initialize Firebase
-        FirebaseApp.initializeApp(this)
+        try {
+            // Initialize Firebase
+            FirebaseApp.initializeApp(this)
 
-        // Initialize DevicePreferences
-        val devicePreferences = DevicePreferences(this)
+            // Initialize DevicePreferences
+            val devicePreferences = DevicePreferences(this)
 
-        // Initialize and start Firestore sync
-        val repository = get<MosqueSettingsRepository>()
-        firestoreSync = FirestoreSync(repository, devicePreferences)
-        firestoreSync.startSync()
+            // Initialize and start Firestore sync
+            val repository = get<MosqueSettingsRepository>()
+            firestoreSync = FirestoreSync(repository, devicePreferences)
+            firestoreSync.startSync()
+        } catch (e: Exception) {
+            Log.e("BaiturrahmanApp", "Error initializing Firebase or Firestore", e)
+        }
     }
 
     override fun onTerminate() {
