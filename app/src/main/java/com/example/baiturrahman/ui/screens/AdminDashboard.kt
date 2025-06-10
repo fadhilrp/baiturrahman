@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -184,10 +185,24 @@ fun AdminDashboard(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    // Add Force Push button
+                    IconButton(
+                        onClick = {
+                            firestoreSync.forcePush()
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Force push triggered - check logs")
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Force Push")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = emeraldGreen,
                     titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
                 )
             )
         },
@@ -201,6 +216,21 @@ fun AdminDashboard(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // Debug Info Section
+            AdminSection(
+                title = "Debug Info",
+                content = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Device: ${devicePreferences.deviceName}")
+                        Text("Master Device: ${devicePreferences.isMasterDevice}")
+                        Text("Sync Enabled: ${devicePreferences.syncEnabled}")
+                        Text("Check logcat for detailed sync logs with tag 'FirestoreSync'")
+                    }
+                }
+            )
+
             // Header Section
             AdminSection(
                 title = "Header Settings",
@@ -572,6 +602,7 @@ fun AdminDashboard(
                     firestoreSync.setDeviceName(deviceName)
                     firestoreSync.setMasterDevice(isMasterDevice)
                     firestoreSync.setSyncEnabled(syncEnabled)
+                    viewModel.saveAllSettings() // This should trigger the local listeners
                     onClose()
                 },
                 colors = ButtonDefaults.buttonColors(
