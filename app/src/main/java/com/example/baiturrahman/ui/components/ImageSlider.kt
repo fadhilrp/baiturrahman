@@ -72,7 +72,7 @@ fun ImageSlider(
                     // Default image if no images are available
                     Image(
                         painter = painterResource(id = R.drawable.mosque),
-                        contentDescription = "Default Mosque Image",
+                        contentDescription = "Gambar Masjid Default",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -84,7 +84,7 @@ fun ImageSlider(
                                 .data(images[page].toUri())
                                 .build()
                         ),
-                        contentDescription = "Mosque Image ${page + 1}",
+                        contentDescription = "Gambar Masjid ${page + 1}",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -106,7 +106,7 @@ fun ImageSlider(
                     val isSelected = index == pagerState.currentPage
                     val size by animateFloatAsState(
                         targetValue = if (isSelected) 10f else 8f,
-                        label = "indicator size"
+                        label = "ukuran indikator"
                     )
 
                     Box(
@@ -127,4 +127,3 @@ fun ImageSlider(
         }
     }
 }
-

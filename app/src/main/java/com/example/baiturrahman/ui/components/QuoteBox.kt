@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -18,20 +19,27 @@ import com.example.baiturrahman.ui.theme.emeraldGreen
 fun QuoteBox(
     quote: String = "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec vel egestas dolor, nec dignissim metus.\""
 ) {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val isMobile = screenWidth < 600
+
+    // Responsive font size and padding
+    val fontSize = if (isMobile) 16.sp else 20.sp
+    val padding = if (isMobile) 12.dp else 16.dp
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .fillMaxHeight()
             .background(emeraldGreen)
-            .padding(16.dp)
+            .padding(padding)
     ) {
         Text(
             text = quote,
             color = Color.White,
             textAlign = TextAlign.Center,
-            fontSize = 20.sp,
+            fontSize = fontSize,
             modifier = Modifier.fillMaxWidth()
         )
     }
 }
-
