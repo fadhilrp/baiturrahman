@@ -217,19 +217,19 @@ fun AdminDashboard(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Debug Info Section
-            AdminSection(
-                title = "Info Debug",
-                content = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("Perangkat: ${devicePreferences.deviceName}")
-                        Text("Perangkat Utama: ${if (devicePreferences.isMasterDevice) "Ya" else "Tidak"}")
-                        Text("Sinkronisasi Aktif: ${if (devicePreferences.syncEnabled) "Ya" else "Tidak"}")
-                        Text("Periksa logcat untuk log sinkronisasi detail dengan tag 'FirestoreSync'")
-                    }
-                }
-            )
+//            AdminSection(
+//                title = "Info Debug",
+//                content = {
+//                    Column(
+//                        verticalArrangement = Arrangement.spacedBy(8.dp)
+//                    ) {
+//                        Text("Perangkat: ${devicePreferences.deviceName}")
+//                        Text("Perangkat Utama: ${if (devicePreferences.isMasterDevice) "Ya" else "Tidak"}")
+//                        Text("Sinkronisasi Aktif: ${if (devicePreferences.syncEnabled) "Ya" else "Tidak"}")
+//                        Text("Periksa logcat untuk log sinkronisasi detail dengan tag 'FirestoreSync'")
+//                    }
+//                }
+//            )
 
             // Sync Settings Section - moved to be right after Debug Info
             AdminSection(

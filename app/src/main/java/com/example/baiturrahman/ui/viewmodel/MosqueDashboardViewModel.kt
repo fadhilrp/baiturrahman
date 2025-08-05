@@ -56,7 +56,7 @@ class MosqueDashboardViewModel(
     private val _mosqueImages = MutableStateFlow<List<String>>(emptyList())
     val mosqueImages: StateFlow<List<String>> = _mosqueImages
 
-    // Current image index for slider
+    // Current image index for slider - with proper synchronization
     private val _currentImageIndex = MutableStateFlow(0)
     val currentImageIndex: StateFlow<Int> = _currentImageIndex
 
@@ -77,7 +77,10 @@ class MosqueDashboardViewModel(
 
     // Database image IDs (to keep track for deletion)
     private val imageIdMap = mutableMapOf<String, Int>()
-    
+
+    // Flag to prevent slider conflicts during sync
+    private var isSliderSyncing = false
+
     init {
         loadSavedSettings()
         fetchPrayerTimes()
@@ -101,9 +104,13 @@ class MosqueDashboardViewModel(
         }
 
         viewModelScope.launch {
-            // Load images
+            // Load images with proper synchronization
             settingsRepository.mosqueImages.collectLatest { images ->
                 val imageUris = images.sortedBy { it.displayOrder }.map { it.imageUri }
+
+                // Set syncing flag to prevent conflicts
+                isSliderSyncing = true
+
                 _mosqueImages.value = imageUris
 
                 // Update image ID map
@@ -112,10 +119,20 @@ class MosqueDashboardViewModel(
                     imageIdMap[image.imageUri] = image.id
                 }
 
-                // Reset current index if needed
-                if (_currentImageIndex.value >= imageUris.size && imageUris.isNotEmpty()) {
+                // Reset current index if needed, but preserve valid indices
+                val currentIndex = _currentImageIndex.value
+                if (imageUris.isNotEmpty()) {
+                    if (currentIndex >= imageUris.size) {
+                        _currentImageIndex.value = 0
+                    }
+                    // If images list changed but current index is still valid, keep it
+                } else {
                     _currentImageIndex.value = 0
                 }
+
+                // Clear syncing flag after a short delay
+                delay(100)
+                isSliderSyncing = false
             }
         }
     }
@@ -124,8 +141,15 @@ class MosqueDashboardViewModel(
         viewModelScope.launch {
             while (true) {
                 delay(5000) // Change image every 5 seconds
-                if (_mosqueImages.value.isNotEmpty()) {
-                    _currentImageIndex.value = (_currentImageIndex.value + 1) % _mosqueImages.value.size
+
+                // Only auto-advance if not currently syncing and we have images
+                if (!isSliderSyncing && _mosqueImages.value.isNotEmpty()) {
+                    val currentImages = _mosqueImages.value
+                    val currentIndex = _currentImageIndex.value
+
+                    // Calculate next index safely
+                    val nextIndex = if (currentIndex + 1 >= currentImages.size) 0 else currentIndex + 1
+                    _currentImageIndex.value = nextIndex
                 }
             }
         }
@@ -136,7 +160,6 @@ class MosqueDashboardViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true)
 
             prayerTimeRepository.getPrayerTimes(
-
                 address = _prayerAddress.value,
                 timezone = _prayerTimezone.value
             ).fold(
@@ -214,7 +237,8 @@ class MosqueDashboardViewModel(
     }
 
     fun setCurrentImageIndex(index: Int) {
-        if (index in _mosqueImages.value.indices) {
+        val currentImages = _mosqueImages.value
+        if (!isSliderSyncing && index in currentImages.indices) {
             _currentImageIndex.value = index
         }
     }
@@ -239,4 +263,3 @@ class MosqueDashboardViewModel(
         val errorMessage: String? = null
     )
 }
-

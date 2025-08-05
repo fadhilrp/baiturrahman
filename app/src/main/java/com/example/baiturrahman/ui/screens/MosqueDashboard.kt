@@ -30,8 +30,8 @@ fun MosqueDashboard(
     val isMobile = screenWidth < 600 || screenHeight > screenWidth
 
     val uiState by viewModel.uiState.collectAsState()
-    // Default to admin dashboard on mobile, mosque dashboard on TV/tablet
-    var showAdminDashboard by remember { mutableStateOf(isMobile) }
+    // Default to mosque dashboard for both mobile and desktop
+    var showAdminDashboard by remember { mutableStateOf(false) }
     val mosqueImages by viewModel.mosqueImages.collectAsState()
     val currentImageIndex by viewModel.currentImageIndex.collectAsState()
 
@@ -53,7 +53,7 @@ fun MosqueDashboard(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-//                            .weight(0.5f) // Takes remaining space above marquee
+                            .weight(1f) // Takes remaining space above marquee
                     ) {
                         // Header with logo
                         Header()
@@ -67,8 +67,8 @@ fun MosqueDashboard(
                         // Mosque Image Slider - same size as desktop
                         Box(
                             modifier = Modifier
-//                                .fillMaxWidth()
-                                .size(width = 400.dp, height = 256.dp) // exact size
+                                .fillMaxWidth()
+                                .weight(0.4f) // Takes 40% of available space
                                 .border(width = 0.5.dp, Color.White)
                         ) {
                             ImageSlider(
@@ -83,7 +83,7 @@ fun MosqueDashboard(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(70.dp)
+                                .height(100.dp)
                         ) {
                             val quote by viewModel.quoteText.collectAsState()
                             QuoteBox(quote = quote)
@@ -132,8 +132,8 @@ fun MosqueDashboard(
                     // Left side - Mosque Image Slider
                     Box(
                         modifier = Modifier
-                            .weight(1f).fillMaxHeight() // size 640 x 410
-//                            .size(width = 640.dp, height = 410.dp)
+                            .weight(1f)
+                            .fillMaxHeight()
                             .border(width = 0.5.dp, Color.White)
                     ) {
                         ImageSlider(
