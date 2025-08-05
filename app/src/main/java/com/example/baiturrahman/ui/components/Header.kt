@@ -26,6 +26,7 @@ import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import com.example.baiturrahman.R
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
+import com.example.baiturrahman.ui.components.SupabaseImage // Assuming SupabaseImage is defined in this package
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -54,16 +55,13 @@ fun Header(
             .padding(padding),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Logo image - use custom image if available, otherwise use default
+        // Logo image - use Supabase image if available, otherwise use default
         if (logoImage != null) {
-            Image(
-                painter = rememberAsyncImagePainter(
-                    ImageRequest.Builder(context)
-                        .data(logoImage!!.toUri())
-                        .build()
-                ),
-                contentDescription = "Logo Masjid",
-                modifier = Modifier.size(logoSize)
+            SupabaseImage(
+                imageUrl = logoImage,
+                contentDescription = "Mosque Logo",
+                modifier = Modifier.size(64.dp),
+                fallbackResourceId = R.drawable.logo2
             )
         } else {
             Image(
