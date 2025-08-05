@@ -135,7 +135,7 @@ fun AdminDashboard(
         } else {
             // Show a message that permissions are required
             scope.launch {
-                snackbarHostState.showSnackbar("Storage permissions are required to select images")
+                snackbarHostState.showSnackbar("Izin penyimpanan diperlukan untuk memilih gambar")
             }
         }
     }
@@ -179,10 +179,10 @@ fun AdminDashboard(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Admin Dashboard") },
+                title = { Text("Dashboard Admin") },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
                     }
                 },
                 actions = {
@@ -191,11 +191,11 @@ fun AdminDashboard(
                         onClick = {
                             firestoreSync.forcePush()
                             scope.launch {
-                                snackbarHostState.showSnackbar("Force push triggered - check logs")
+                                snackbarHostState.showSnackbar("Paksa sinkronisasi dipicu - periksa log")
                             }
                         }
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Force Push")
+                        Icon(Icons.Default.Refresh, contentDescription = "Paksa Sinkronisasi")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -217,331 +217,23 @@ fun AdminDashboard(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Debug Info Section
+//            AdminSection(
+//                title = "Info Debug",
+//                content = {
+//                    Column(
+//                        verticalArrangement = Arrangement.spacedBy(8.dp)
+//                    ) {
+//                        Text("Perangkat: ${devicePreferences.deviceName}")
+//                        Text("Perangkat Utama: ${if (devicePreferences.isMasterDevice) "Ya" else "Tidak"}")
+//                        Text("Sinkronisasi Aktif: ${if (devicePreferences.syncEnabled) "Ya" else "Tidak"}")
+//                        Text("Periksa logcat untuk log sinkronisasi detail dengan tag 'FirestoreSync'")
+//                    }
+//                }
+//            )
+
+            // Sync Settings Section - moved to be right after Debug Info
             AdminSection(
-                title = "Debug Info",
-                content = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("Device: ${devicePreferences.deviceName}")
-                        Text("Master Device: ${devicePreferences.isMasterDevice}")
-                        Text("Sync Enabled: ${devicePreferences.syncEnabled}")
-                        Text("Check logcat for detailed sync logs with tag 'FirestoreSync'")
-                    }
-                }
-            )
-
-            // Header Section
-            AdminSection(
-                title = "Header Settings",
-                content = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Mosque Name with character limit
-                        OutlinedTextField(
-                            value = mosqueName,
-                            onValueChange = {
-                                if (it.length <= 35) mosqueName = it
-                            },
-                            label = { Text("Mosque Name") },
-                            modifier = Modifier.fillMaxWidth(),
-                            supportingText = {
-                                Text(
-                                    text = "$mosqueNameCharCount/35",
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.End,
-                                    color = if (mosqueNameCharCount >= 35) Color.Red else Color.Gray
-                                )
-                            },
-                            isError = mosqueNameCharCount >= 35
-                        )
-
-                        // Mosque Location with character limit
-                        OutlinedTextField(
-                            value = mosqueLocation,
-                            onValueChange = {
-                                if (it.length <= 25) mosqueLocation = it
-                            },
-                            label = { Text("Mosque Location") },
-                            modifier = Modifier.fillMaxWidth(),
-                            supportingText = {
-                                Text(
-                                    text = "$mosqueLocationCharCount/25",
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.End,
-                                    color = if (mosqueLocationCharCount >= 25) Color.Red else Color.Gray
-                                )
-                            },
-                            isError = mosqueLocationCharCount >= 25
-                        )
-
-                        // Logo Image
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Logo Image:",
-                                fontWeight = FontWeight.Medium
-                            )
-
-                            Button(
-                                onClick = {
-                                    // Check permissions for logo image too
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                        val hasPermission = ContextCompat.checkSelfPermission(
-                                            context,
-                                            Manifest.permission.READ_MEDIA_IMAGES
-                                        ) == PackageManager.PERMISSION_GRANTED
-
-                                        if (hasPermission) {
-                                            logoImageLauncher.launch("image/*")
-                                        } else {
-                                            requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_MEDIA_IMAGES))
-                                        }
-                                    } else {
-                                        val hasPermission = ContextCompat.checkSelfPermission(
-                                            context,
-                                            Manifest.permission.READ_EXTERNAL_STORAGE
-                                        ) == PackageManager.PERMISSION_GRANTED
-
-                                        if (hasPermission) {
-                                            logoImageLauncher.launch("image/*")
-                                        } else {
-                                            requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
-                                        }
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = emeraldGreen
-                                )
-                            ) {
-                                Icon(Icons.Default.Edit, contentDescription = "Change Logo")
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Change Logo")
-                            }
-                        }
-                    }
-                }
-            )
-
-            // Prayer API Settings Section
-            AdminSection(
-                title = "Prayer Times Settings",
-                content = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Address Input
-                        OutlinedTextField(
-                            value = prayerAddress,
-                            onValueChange = { prayerAddress = it },
-                            label = { Text("Prayer Times Address") },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("e.g., Lebak Bulus, Jakarta, ID") }
-                        )
-
-                        // Timezone Dropdown
-                        Column {
-                            Text(
-                                text = "Timezone:",
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-
-                            Box(
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .border(1.dp, Color.Gray, RoundedCornerShape(4.dp))
-                                        .clickable { timezoneMenuExpanded = true }
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(prayerTimezone)
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = "Select Timezone"
-                                    )
-                                }
-
-                                DropdownMenu(
-                                    expanded = timezoneMenuExpanded,
-                                    onDismissRequest = { timezoneMenuExpanded = false },
-                                    modifier = Modifier.fillMaxWidth(0.9f)
-                                ) {
-                                    viewModel.availableTimezones.forEach { timezone ->
-                                        DropdownMenuItem(
-                                            text = { Text(timezone) },
-                                            onClick = {
-                                                prayerTimezone = timezone
-                                                timezoneMenuExpanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            )
-
-            // Quote Section with character limit
-            AdminSection(
-                title = "Quote Settings",
-                content = {
-                    OutlinedTextField(
-                        value = quoteText,
-                        onValueChange = {
-                            if (it.length <= 100) quoteText = it
-                        },
-                        label = { Text("Quote Text") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3,
-                        supportingText = {
-                            Text(
-                                text = "$quoteTextCharCount/100",
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.End,
-                                color = if (quoteTextCharCount >= 100) Color.Red else Color.Gray
-                            )
-                        },
-                        isError = quoteTextCharCount >= 100
-                    )
-                }
-            )
-
-            // Mosque Images Section
-            AdminSection(
-                title = "Mosque Images (Max 5)",
-                content = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Current images
-                        if (mosqueImages.isNotEmpty()) {
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(120.dp)
-                            ) {
-                                itemsIndexed(mosqueImages) { index, imageUri ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(120.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .border(1.dp, emeraldGreen, RoundedCornerShape(8.dp))
-                                    ) {
-                                        Image(
-                                            painter = rememberAsyncImagePainter(
-                                                ImageRequest.Builder(context)
-                                                    .data(imageUri.toUri())
-                                                    .build()
-                                            ),
-                                            contentDescription = "Mosque Image ${index + 1}",
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentScale = ContentScale.Crop
-                                        )
-
-                                        // Delete button
-                                        IconButton(
-                                            onClick = { viewModel.removeMosqueImage(index) },
-                                            modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .size(32.dp)
-                                                .background(
-                                                    Color.White.copy(alpha = 0.7f),
-                                                    CircleShape
-                                                )
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Remove Image",
-                                                tint = Color.Red,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-
-                                        // Image number
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.BottomStart)
-                                                .padding(4.dp)
-                                                .background(
-                                                    Color.Black.copy(alpha = 0.7f),
-                                                    RoundedCornerShape(4.dp)
-                                                )
-                                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = "${index + 1}",
-                                                color = Color.White,
-                                                fontSize = 12.sp
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Add image button (only if less than 5 images)
-                        if (mosqueImages.size < 5) {
-                            Button(
-                                onClick = { checkAndRequestPermissions() },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = emeraldGreen
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Add Mosque Image")
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Add Image (${mosqueImages.size}/5)")
-                            }
-                        } else {
-                            Text(
-                                text = "Maximum number of images reached (5/5)",
-                                color = Color.Gray,
-                                fontSize = 14.sp,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
-                        }
-                    }
-                }
-            )
-
-            // Marquee Text Section with character limit
-            AdminSection(
-                title = "Marquee Text",
-                content = {
-                    OutlinedTextField(
-                        value = marqueeText,
-                        onValueChange = {
-                            if (it.length <= 100) marqueeText = it
-                        },
-                        label = { Text("Marquee Text") },
-                        modifier = Modifier.fillMaxWidth(),
-                        supportingText = {
-                            Text(
-                                text = "$marqueeTextCharCount/100",
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.End,
-                                color = if (marqueeTextCharCount >= 100) Color.Red else Color.Gray
-                            )
-                        },
-                        isError = marqueeTextCharCount >= 100
-                    )
-                }
-            )
-
-            // Sync Settings Section
-            AdminSection(
-                title = "Sync Settings",
+                title = "Pengaturan Sinkronisasi",
                 content = {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -550,7 +242,7 @@ fun AdminDashboard(
                         OutlinedTextField(
                             value = deviceName,
                             onValueChange = { deviceName = it },
-                            label = { Text("Device Name") },
+                            label = { Text("Nama Perangkat") },
                             modifier = Modifier.fillMaxWidth()
                         )
 
@@ -560,7 +252,7 @@ fun AdminDashboard(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Master Device (can update other TVs)")
+                            Text("Perangkat Utama (dapat mengubah TV lain)")
                             androidx.compose.material3.Switch(
                                 checked = isMasterDevice,
                                 onCheckedChange = { isMasterDevice = it }
@@ -573,7 +265,7 @@ fun AdminDashboard(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Enable Sync")
+                            Text("Aktifkan Sinkronisasi")
                             androidx.compose.material3.Switch(
                                 checked = syncEnabled,
                                 onCheckedChange = { syncEnabled = it }
@@ -582,7 +274,7 @@ fun AdminDashboard(
 
                         // Info text
                         Text(
-                            text = "When sync is enabled, this device will receive updates from the master device. If this is the master device, changes made here will update all other TVs.",
+                            text = "Ketika sinkronisasi diaktifkan, perangkat ini akan menerima pembaruan dari perangkat utama. Jika ini adalah perangkat utama, perubahan yang dibuat di sini akan memperbarui semua TV lain.",
                             color = Color.Gray,
                             fontSize = 14.sp
                         )
@@ -590,29 +282,392 @@ fun AdminDashboard(
                 }
             )
 
-            // Save Button
-            Button(
-                onClick = {
-                    viewModel.updateQuoteText(quoteText)
-                    viewModel.updateMosqueName(mosqueName)
-                    viewModel.updateMosqueLocation(mosqueLocation)
-                    viewModel.updateMarqueeText(marqueeText)
-                    viewModel.updatePrayerAddress(prayerAddress)
-                    viewModel.updatePrayerTimezone(prayerTimezone)
-                    firestoreSync.setDeviceName(deviceName)
-                    firestoreSync.setMasterDevice(isMasterDevice)
-                    firestoreSync.setSyncEnabled(syncEnabled)
-                    viewModel.saveAllSettings() // This should trigger the local listeners
-                    onClose()
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = emeraldGreen
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.Check, contentDescription = "Save Changes")
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Save Changes")
+            // Only show the sections below if Master Device is enabled
+            if (isMasterDevice) {
+                // Header Section
+                AdminSection(
+                    title = "Pengaturan Header",
+                    content = {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Mosque Name with character limit
+                            OutlinedTextField(
+                                value = mosqueName,
+                                onValueChange = {
+                                    if (it.length <= 35) mosqueName = it
+                                },
+                                label = { Text("Nama Masjid") },
+                                modifier = Modifier.fillMaxWidth(),
+                                supportingText = {
+                                    Text(
+                                        text = "$mosqueNameCharCount/35",
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.End,
+                                        color = if (mosqueNameCharCount >= 35) Color.Red else Color.Gray
+                                    )
+                                },
+                                isError = mosqueNameCharCount >= 35
+                            )
+
+                            // Mosque Location with character limit
+                            OutlinedTextField(
+                                value = mosqueLocation,
+                                onValueChange = {
+                                    if (it.length <= 25) mosqueLocation = it
+                                },
+                                label = { Text("Lokasi Masjid") },
+                                modifier = Modifier.fillMaxWidth(),
+                                supportingText = {
+                                    Text(
+                                        text = "$mosqueLocationCharCount/25",
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.End,
+                                        color = if (mosqueLocationCharCount >= 25) Color.Red else Color.Gray
+                                    )
+                                },
+                                isError = mosqueLocationCharCount >= 25
+                            )
+
+                            // Logo Image
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Logo Masjid:",
+                                    fontWeight = FontWeight.Medium
+                                )
+
+                                Button(
+                                    onClick = {
+                                        // Check permissions for logo image too
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                            val hasPermission = ContextCompat.checkSelfPermission(
+                                                context,
+                                                Manifest.permission.READ_MEDIA_IMAGES
+                                            ) == PackageManager.PERMISSION_GRANTED
+
+                                            if (hasPermission) {
+                                                logoImageLauncher.launch("image/*")
+                                            } else {
+                                                requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_MEDIA_IMAGES))
+                                            }
+                                        } else {
+                                            val hasPermission = ContextCompat.checkSelfPermission(
+                                                context,
+                                                Manifest.permission.READ_EXTERNAL_STORAGE
+                                            ) == PackageManager.PERMISSION_GRANTED
+
+                                            if (hasPermission) {
+                                                logoImageLauncher.launch("image/*")
+                                            } else {
+                                                requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
+                                            }
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = emeraldGreen
+                                    )
+                                ) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Ubah Logo")
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Ubah Logo")
+                                }
+                            }
+                        }
+                    }
+                )
+
+                // Prayer API Settings Section
+                AdminSection(
+                    title = "Pengaturan Waktu Sholat",
+                    content = {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Address Input
+                            OutlinedTextField(
+                                value = prayerAddress,
+                                onValueChange = { prayerAddress = it },
+                                label = { Text("Alamat Waktu Sholat") },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("contoh: Lebak Bulus, Jakarta, ID") }
+                            )
+
+                            // Timezone Dropdown
+                            Column {
+                                Text(
+                                    text = "Zona Waktu:",
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+
+                                Box(
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.dp, Color.Gray, RoundedCornerShape(4.dp))
+                                            .clickable { timezoneMenuExpanded = true }
+                                            .padding(16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(prayerTimezone)
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = "Pilih Zona Waktu"
+                                        )
+                                    }
+
+                                    DropdownMenu(
+                                        expanded = timezoneMenuExpanded,
+                                        onDismissRequest = { timezoneMenuExpanded = false },
+                                        modifier = Modifier.fillMaxWidth(0.9f)
+                                    ) {
+                                        viewModel.availableTimezones.forEach { timezone ->
+                                            DropdownMenuItem(
+                                                text = { Text(timezone) },
+                                                onClick = {
+                                                    prayerTimezone = timezone
+                                                    timezoneMenuExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                )
+
+                // Quote Section with character limit
+                AdminSection(
+                    title = "Pengaturan Kutipan",
+                    content = {
+                        OutlinedTextField(
+                            value = quoteText,
+                            onValueChange = {
+                                if (it.length <= 100) quoteText = it
+                            },
+                            label = { Text("Teks Kutipan") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 3,
+                            supportingText = {
+                                Text(
+                                    text = "$quoteTextCharCount/100",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.End,
+                                    color = if (quoteTextCharCount >= 100) Color.Red else Color.Gray
+                                )
+                            },
+                            isError = quoteTextCharCount >= 100
+                        )
+                    }
+                )
+
+                // Mosque Images Section
+                AdminSection(
+                    title = "Slide Gambar (640 x 410) (Maks 5)",
+                    content = {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Current images
+                            if (mosqueImages.isNotEmpty()) {
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(120.dp)
+                                ) {
+                                    itemsIndexed(mosqueImages) { index, imageUri ->
+                                        Box(
+                                            modifier = Modifier
+                                                .size(120.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .border(1.dp, emeraldGreen, RoundedCornerShape(8.dp))
+                                        ) {
+                                            Image(
+                                                painter = rememberAsyncImagePainter(
+                                                    ImageRequest.Builder(context)
+                                                        .data(imageUri.toUri())
+                                                        .build()
+                                                ),
+                                                contentDescription = "Gambar Masjid ${index + 1}",
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
+                                            )
+
+                                            // Delete button
+                                            IconButton(
+                                                onClick = { viewModel.removeMosqueImage(index) },
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .size(32.dp)
+                                                    .background(
+                                                        Color.White.copy(alpha = 0.7f),
+                                                        CircleShape
+                                                    )
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Hapus Gambar",
+                                                    tint = Color.Red,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+
+                                            // Image number
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomStart)
+                                                    .padding(4.dp)
+                                                    .background(
+                                                        Color.Black.copy(alpha = 0.7f),
+                                                        RoundedCornerShape(4.dp)
+                                                    )
+                                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = "${index + 1}",
+                                                    color = Color.White,
+                                                    fontSize = 12.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Add image button (only if less than 5 images)
+                            if (mosqueImages.size < 5) {
+                                Button(
+                                    onClick = { checkAndRequestPermissions() },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = emeraldGreen
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = "Tambah Gambar Masjid")
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Tambah Gambar (${mosqueImages.size}/5)")
+                                }
+                            } else {
+                                Text(
+                                    text = "Jumlah maksimum gambar tercapai (5/5)",
+                                    color = Color.Gray,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                )
+
+                // Marquee Text Section with character limit
+                AdminSection(
+                    title = "Teks Berjalan",
+                    content = {
+                        OutlinedTextField(
+                            value = marqueeText,
+                            onValueChange = {
+                                if (it.length <= 100) marqueeText = it
+                            },
+                            label = { Text("Teks Berjalan") },
+                            modifier = Modifier.fillMaxWidth(),
+                            supportingText = {
+                                Text(
+                                    text = "$marqueeTextCharCount/100",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.End,
+                                    color = if (marqueeTextCharCount >= 100) Color.Red else Color.Gray
+                                )
+                            },
+                            isError = marqueeTextCharCount >= 100
+                        )
+                    }
+                )
+
+                // Save Button - only show for master devices
+                Button(
+                    onClick = {
+                        viewModel.updateQuoteText(quoteText)
+                        viewModel.updateMosqueName(mosqueName)
+                        viewModel.updateMosqueLocation(mosqueLocation)
+                        viewModel.updateMarqueeText(marqueeText)
+                        viewModel.updatePrayerAddress(prayerAddress)
+                        viewModel.updatePrayerTimezone(prayerTimezone)
+                        firestoreSync.setDeviceName(deviceName)
+                        firestoreSync.setMasterDevice(isMasterDevice)
+                        firestoreSync.setSyncEnabled(syncEnabled)
+                        viewModel.saveAllSettings() // This should trigger the local listeners
+                        onClose()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = emeraldGreen
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = "Simpan Perubahan")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Simpan Perubahan")
+                }
+            } else {
+                // Show message for non-master devices
+                AdminSection(
+                    title = "Pengaturan Perangkat",
+                    content = {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Text(
+                                text = "Perangkat ini dikonfigurasi sebagai perangkat non-utama. Perangkat ini akan menerima pembaruan dari perangkat utama tetapi tidak dapat membuat perubahan pada pengaturan masjid.",
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
+
+                            Text(
+                                text = "Untuk membuat perubahan, pilih salah satu:",
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 14.sp
+                            )
+
+                            Text(
+                                text = "• Aktifkan 'Perangkat Utama' di atas untuk memungkinkan perangkat ini mengontrol pengaturan",
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
+
+                            Text(
+                                text = "• Gunakan perangkat utama yang ditunjuk untuk membuat perubahan",
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                )
+
+                // Save Button for sync settings only
+                Button(
+                    onClick = {
+                        firestoreSync.setDeviceName(deviceName)
+                        firestoreSync.setMasterDevice(isMasterDevice)
+                        firestoreSync.setSyncEnabled(syncEnabled)
+                        onClose()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = emeraldGreen
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = "Simpan Pengaturan Sinkronisasi")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Simpan Pengaturan Sinkronisasi")
+                }
             }
         }
     }

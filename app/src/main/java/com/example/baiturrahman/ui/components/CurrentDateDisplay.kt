@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -30,6 +31,15 @@ import java.util.Locale
 
 @Composable
 fun CurrentDateDisplay(prayerData: PrayerData?) {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val isMobile = screenWidth < 600
+
+    // Responsive text sizes
+    val dateTextSize = if (isMobile) 18.sp else 25.sp
+    val verticalPadding = if (isMobile) 10.dp else 8.dp
+    val dividerWidth = if (isMobile) 150.dp else 250.dp
+
     // Use a simple date format for displaying date
     val dateFormat = SimpleDateFormat("EEEE, d MMMM yyyy", Locale("id"))
 
@@ -103,12 +113,12 @@ fun CurrentDateDisplay(prayerData: PrayerData?) {
         modifier = Modifier
             .fillMaxWidth()
             .background(white)
-            .padding(vertical = 8.dp),
+            .padding(vertical = verticalPadding),
         horizontalAlignment = Alignment.CenterHorizontally
     ){
         Text(
             text = dateString,
-            fontSize = 25.sp,
+            fontSize = dateTextSize,
             color = emeraldGreen,
         )
 
@@ -116,16 +126,15 @@ fun CurrentDateDisplay(prayerData: PrayerData?) {
         HorizontalDivider(
             modifier = Modifier
                 .padding(vertical = 4.dp)
-                .width(250.dp), // Adjust width to match design
+                .width(dividerWidth),
             thickness = 2.dp,
             color = emeraldGreen
         )
 
         Text(
             text = hijriDateText,
-            fontSize = 25.sp,
+            fontSize = dateTextSize,
             color = emeraldGreen,
         )
     }
 }
-

@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,6 +38,10 @@ fun NextPrayerCountdown(
     timings: PrayerTimings?,
     modifier: Modifier = Modifier
 ) {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val isMobile = screenWidth < 600
+
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
     var isIqomahTime by remember { mutableStateOf(false) }
@@ -175,21 +180,24 @@ fun NextPrayerCountdown(
         modifier = modifier
             .clip(
                 RoundedCornerShape(
-                    topStart = 100.dp,
-                    topEnd = 100.dp,
+                    topStart = if (isMobile) 16.dp else 100.dp,
+                    topEnd = if (isMobile) 16.dp else 100.dp,
                     bottomStart = 0.dp,
                     bottomEnd = 0.dp
                 )
             )
             .background(if (isIqomahTime) Color.Yellow.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.9f))
-            .padding(horizontal = 32.dp, vertical = 16.dp),
+            .padding(
+                horizontal = if (isMobile) 16.dp else 32.dp,
+                vertical = if (isMobile) 8.dp else 16.dp
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = displayText,
                 color = if (isIqomahTime) Color.Black else emeraldGreen,
-                fontSize = 32.sp,
+                fontSize = if (isMobile) 20.sp else 32.sp,
                 fontWeight = FontWeight.Bold,
             )
         }

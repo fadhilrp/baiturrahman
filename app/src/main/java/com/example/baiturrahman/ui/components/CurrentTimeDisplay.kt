@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +30,14 @@ import java.util.Locale
 
 @Composable
 fun CurrentTimeDisplay(prayerData: PrayerData?) {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val isMobile = screenWidth < 600
+
+    // Responsive text size
+    val timeTextSize = if (isMobile) 36.sp else 60.sp
+    val verticalPadding = if (isMobile) 10.dp else 15.dp
+
     // Use a simple date format for displaying time
     val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 
@@ -83,15 +92,14 @@ fun CurrentTimeDisplay(prayerData: PrayerData?) {
         modifier = Modifier
             .fillMaxWidth()
             .background(emeraldGreen)
-            .padding(vertical = 15.dp),
+            .padding(vertical = verticalPadding),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = timeString,
-            fontSize = 60.sp,
+            fontSize = timeTextSize,
             color = Color.White,
             fontWeight = FontWeight.Bold
         )
     }
 }
-

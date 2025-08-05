@@ -14,6 +14,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -32,15 +33,26 @@ import org.koin.androidx.compose.koinViewModel
 fun Header(
     viewModel: MosqueDashboardViewModel = koinViewModel()
 ) {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val isMobile = screenWidth < 600
+
     val mosqueName by viewModel.mosqueName.collectAsState()
     val mosqueLocation by viewModel.mosqueLocation.collectAsState()
     val logoImage by viewModel.logoImage.collectAsState()
     val context = LocalContext.current
 
+    // Responsive sizes
+    val logoSize = if (isMobile) 48.dp else 64.dp
+    val nameTextSize = if (isMobile) 18.sp else 22.sp
+    val locationTextSize = if (isMobile) 14.sp else 17.sp
+    val padding = if (isMobile) 8.dp else 15.dp
+    val spacerWidth = if (isMobile) 8.dp else 16.dp
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(15.dp),
+            .padding(padding),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Logo image - use Supabase image if available, otherwise use default
@@ -54,12 +66,12 @@ fun Header(
         } else {
             Image(
                 painter = painterResource(id = R.drawable.logo2),
-                contentDescription = "Mosque Logo",
-                modifier = Modifier.size(64.dp)
+                contentDescription = "Logo Masjid",
+                modifier = Modifier.size(logoSize)
             )
         }
 
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(spacerWidth))
 
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
@@ -67,12 +79,12 @@ fun Header(
             Text(
                 text = mosqueName,
                 textAlign = TextAlign.Center,
-                fontSize = 22.sp,
+                fontSize = nameTextSize,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = mosqueLocation,
-                fontSize = 17.sp
+                fontSize = locationTextSize
             )
         }
     }

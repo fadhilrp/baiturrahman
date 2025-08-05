@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -24,7 +25,10 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 @Composable
-fun PrayerTimesGrid(timings: PrayerTimings?) {
+fun PrayerTimesGrid(
+    timings: PrayerTimings?,
+    isMobile: Boolean = false
+) {
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
     var isIqomahTime by remember { mutableStateOf(false) }
@@ -181,19 +185,67 @@ fun PrayerTimesGrid(timings: PrayerTimings?) {
         }
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Min)
-    ) {
-        prayerTimes.forEach { (name, time) ->
-            PrayerTimeCell(
-                name = name,
-                time = time,
-                isCurrentPrayer = name == currentPrayerName,
-                isIqomahTime = isIqomahTime && name == currentIqomahPrayer,
-                modifier = Modifier.weight(1f)
-            )
+    if (isMobile) {
+        // Mobile layout - 2 rows of 4 prayers each
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            // First row: Imsak, Shubuh, Syuruq, Dhuha
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+//                    .height(IntrinsicSize.Min)
+                    .height(84.dp)
+            ) {
+                listOf("Imsak", "Shubuh", "Syuruq", "Dhuha").forEach { name ->
+                    PrayerTimeCell(
+                        name = name,
+                        time = prayerTimes[name] ?: "XX:XX",
+                        isCurrentPrayer = name == currentPrayerName,
+                        isIqomahTime = isIqomahTime && name == currentIqomahPrayer,
+                        isMobile = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            // Second row: Dzuhur, Ashar, Maghrib, Isya
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+//                    .height(IntrinsicSize.Min)
+                    .height(84.dp)
+            ) {
+                listOf("Dzuhur", "Ashar", "Maghrib", "Isya").forEach { name ->
+                    PrayerTimeCell(
+                        name = name,
+                        time = prayerTimes[name] ?: "XX:XX",
+                        isCurrentPrayer = name == currentPrayerName,
+                        isIqomahTime = isIqomahTime && name == currentIqomahPrayer,
+                        isMobile = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    } else {
+        // TV/Tablet layout - single row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+        ) {
+            prayerTimes.forEach { (name, time) ->
+                PrayerTimeCell(
+                    name = name,
+                    time = time,
+                    isCurrentPrayer = name == currentPrayerName,
+                    isIqomahTime = isIqomahTime && name == currentIqomahPrayer,
+                    isMobile = false,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }
@@ -216,14 +268,20 @@ private fun PrayerTimeCell(
     time: String,
     isCurrentPrayer: Boolean,
     isIqomahTime: Boolean,
+    isMobile: Boolean,
     modifier: Modifier = Modifier
 ) {
+    // Responsive text sizes
+    val nameTextSize = if (isMobile) 16.sp else 20.sp
+    val timeTextSize = if (isMobile) 25.sp else 32.sp
+    val cellPadding = if (isMobile) 6.dp else 16.dp
+
     Column(
         modifier = modifier
             .fillMaxHeight()
             .background(if (isIqomahTime) Color.Yellow else emeraldGreen)
             .border(0.5.dp, Color.White)
-            .padding(vertical = 16.dp),
+            .padding(vertical = cellPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -235,9 +293,9 @@ private fun PrayerTimeCell(
                 if (isIqomahTime && name == "Imsak") Color.Gray else Color.White
             },
             fontWeight = FontWeight.Bold,
-            fontSize = 20.sp
+            fontSize = nameTextSize
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(if (isMobile) 1.dp else 4.dp))
         Text(
             text = time,
             color = if (isCurrentPrayer) {
@@ -245,7 +303,7 @@ private fun PrayerTimeCell(
             } else {
                 if (isIqomahTime && name == "Imsak") Color.Gray else Color.White
             },
-            fontSize = 32.sp,
+            fontSize = timeTextSize,
             fontWeight = FontWeight.Bold
         )
     }
