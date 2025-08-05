@@ -1,12 +1,15 @@
 package com.example.baiturrahman.ui.viewmodel
 
 import android.app.Application
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.data.model.PrayerTimings
 import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.data.repository.PrayerTimeRepository
+import com.example.baiturrahman.data.repository.ImageRepository // Add this
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +20,7 @@ import kotlinx.coroutines.launch
 class MosqueDashboardViewModel(
     private val prayerTimeRepository: PrayerTimeRepository,
     private val settingsRepository: MosqueSettingsRepository,
+    private val imageRepository: ImageRepository, // Add this
     private val application: Application
 ) : ViewModel() {
 
@@ -77,7 +81,7 @@ class MosqueDashboardViewModel(
 
     // Database image IDs (to keep track for deletion)
     private val imageIdMap = mutableMapOf<String, Int>()
-    
+
     init {
         loadSavedSettings()
         fetchPrayerTimes()
@@ -189,30 +193,66 @@ class MosqueDashboardViewModel(
         _marqueeText.value = text
     }
 
+    // Update the logo image function
     fun updateLogoImage(uri: String) {
-        _logoImage.value = uri
+        viewModelScope.launch {
+            try {
+                // Upload to Supabase
+                val publicUrl = imageRepository.uploadImage(Uri.parse(uri), "logos")
+                if (publicUrl != null) {
+                    _logoImage.value = publicUrl
+                    // Delete old logo if it exists
+                    // You might want to keep track of old URLs to delete them
+                } else {
+                    // Handle upload error
+                    Log.e("ViewModel", "Failed to upload logo image")
+                }
+            } catch (e: Exception) {
+                Log.e("ViewModel", "Error uploading logo", e)
+            }
+        }
     }
 
-    // Functions for mosque image slider
+    // Update the mosque image function
     fun addMosqueImage(uri: String) {
         if (_mosqueImages.value.size < 5) {
             viewModelScope.launch {
-                settingsRepository.addMosqueImage(uri)
+                try {
+                    // Upload to Supabase
+                    val publicUrl = imageRepository.uploadImage(Uri.parse(uri), "mosque-images")
+                    if (publicUrl != null) {
+                        settingsRepository.addMosqueImage(publicUrl)
+                    } else {
+                        // Handle upload error
+                        Log.e("ViewModel", "Failed to upload mosque image")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ViewModel", "Error uploading mosque image", e)
+                }
             }
         }
     }
 
+    // Update remove function to delete from Supabase
     fun removeMosqueImage(index: Int) {
         if (index in _mosqueImages.value.indices) {
-            val imageUri = _mosqueImages.value[index]
-            val imageId = imageIdMap[imageUri] ?: return
+            val imageUrl = _mosqueImages.value[index]
+            val imageId = imageIdMap[imageUrl] ?: return
 
             viewModelScope.launch {
-                settingsRepository.removeMosqueImage(imageId)
+                try {
+                    // Delete from Supabase
+                    imageRepository.deleteImage(imageUrl)
+                    // Remove from local database
+                    settingsRepository.removeMosqueImage(imageId)
+                } catch (e: Exception) {
+                    Log.e("ViewModel", "Error removing image", e)
+                }
             }
         }
     }
 
+    // Functions for mosque image slider
     fun setCurrentImageIndex(index: Int) {
         if (index in _mosqueImages.value.indices) {
             _currentImageIndex.value = index
@@ -239,4 +279,3 @@ class MosqueDashboardViewModel(
         val errorMessage: String? = null
     )
 }
-

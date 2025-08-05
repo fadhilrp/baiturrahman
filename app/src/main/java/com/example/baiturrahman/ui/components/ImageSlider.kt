@@ -25,11 +25,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
-import coil3.compose.rememberAsyncImagePainter
-import coil3.request.ImageRequest
 import com.example.baiturrahman.R
 import kotlinx.coroutines.launch
+import com.example.baiturrahman.ui.components.SupabaseImage // Assuming SupabaseImage is defined in this package or imported
 
 @Composable
 fun ImageSlider(
@@ -77,16 +75,13 @@ fun ImageSlider(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Custom image from URI
-                    Image(
-                        painter = rememberAsyncImagePainter(
-                            ImageRequest.Builder(context)
-                                .data(images[page].toUri())
-                                .build()
-                        ),
+                    // Use SupabaseImage for cloud images
+                    SupabaseImage(
+                        imageUrl = images[page],
                         contentDescription = "Mosque Image ${page + 1}",
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        fallbackResourceId = R.drawable.mosque
                     )
                 }
             }
@@ -127,4 +122,3 @@ fun ImageSlider(
         }
     }
 }
-
