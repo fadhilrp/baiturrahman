@@ -52,7 +52,7 @@ fun NextPrayerCountdown(
 
     // MediaPlayer instances for alarms
     val prayerAlarmPlayer = remember { MediaPlayer.create(context, R.raw.prayer_alarm) }
-    val iqomahAlarmPlayer = remember { MediaPlayer.create(context, R.raw.iqomah_alarm) }
+    val iqomahAlarmPlayer = remember { MediaPlayer.create(context, R.raw.prayer_alarm) }
 
     // Clean up MediaPlayer when component is disposed
     DisposableEffect(Unit) {

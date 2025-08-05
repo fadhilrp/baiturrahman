@@ -21,9 +21,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
-import coil3.compose.rememberAsyncImagePainter
-import coil3.request.ImageRequest
 import com.example.baiturrahman.R
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
 import com.example.baiturrahman.ui.components.SupabaseImage // Assuming SupabaseImage is defined in this package

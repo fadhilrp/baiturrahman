@@ -3,6 +3,7 @@ package com.example.baiturrahman
 import android.app.Application
 import android.util.Log
 import com.example.baiturrahman.data.remote.FirestoreSync
+import com.example.baiturrahman.data.remote.SupabaseClient
 import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.di.appModule
 import com.example.baiturrahman.utils.DevicePreferences
@@ -29,6 +30,11 @@ class BaiturrahmanApp : Application() {
             // Initialize Firebase
             FirebaseApp.initializeApp(this)
 
+            // Initialize Supabase (this will trigger the init block)
+            Log.d("BaiturrahmanApp", "Initializing Supabase...")
+            SupabaseClient.client // This will trigger initialization
+            Log.d("BaiturrahmanApp", "Supabase initialized successfully")
+
             // Initialize DevicePreferences
             val devicePreferences = DevicePreferences(this)
 
@@ -37,7 +43,7 @@ class BaiturrahmanApp : Application() {
             firestoreSync = FirestoreSync(repository, devicePreferences)
             firestoreSync.startSync()
         } catch (e: Exception) {
-            Log.e("BaiturrahmanApp", "Error initializing Firebase or Firestore", e)
+            Log.e("BaiturrahmanApp", "Error initializing Firebase, Supabase, or Firestore", e)
         }
     }
 

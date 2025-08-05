@@ -9,7 +9,7 @@ import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.data.model.PrayerTimings
 import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.data.repository.PrayerTimeRepository
-import com.example.baiturrahman.data.repository.ImageRepository // Add this
+import com.example.baiturrahman.data.repository.ImageRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,9 +20,13 @@ import kotlinx.coroutines.launch
 class MosqueDashboardViewModel(
     private val prayerTimeRepository: PrayerTimeRepository,
     private val settingsRepository: MosqueSettingsRepository,
-    private val imageRepository: ImageRepository, // Add this
+    private val imageRepository: ImageRepository,
     private val application: Application
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "MosqueDashboardViewModel"
+    }
 
     // Default prayer timings to show before API loads
     private val defaultPrayerTimings = PrayerTimings(
@@ -82,10 +86,26 @@ class MosqueDashboardViewModel(
     // Database image IDs (to keep track for deletion)
     private val imageIdMap = mutableMapOf<String, Int>()
     private var isSliderSyncing = false
+
     init {
         loadSavedSettings()
         fetchPrayerTimes()
         startImageSlider()
+
+        // Test Supabase connection on startup
+        testSupabaseConnection()
+    }
+
+    private fun testSupabaseConnection() {
+        viewModelScope.launch {
+            Log.d(TAG, "🧪 Testing Supabase connection on startup...")
+            val connectionSuccess = imageRepository.testConnection()
+            if (connectionSuccess) {
+                Log.d(TAG, "✅ Supabase connection test passed")
+            } else {
+                Log.e(TAG, "❌ Supabase connection test failed")
+            }
+        }
     }
 
     private fun loadSavedSettings() {
@@ -213,47 +233,64 @@ class MosqueDashboardViewModel(
         _marqueeText.value = text
     }
 
-    // Update the logo image function
+    // Update the logo image function with extensive debugging
     fun updateLogoImage(uri: String) {
         viewModelScope.launch {
             try {
+                Log.d(TAG, "=== UPDATING LOGO IMAGE ===")
+                Log.d(TAG, "URI: $uri")
+
                 // Upload to Supabase
                 val publicUrl = imageRepository.uploadImage(Uri.parse(uri), "logos")
                 if (publicUrl != null) {
-                    _logoImage.value = publicUrl
+                    Log.d(TAG, "✅ Logo uploaded successfully: $publicUrl")
+
                     // Delete old logo if it exists
-                    // You might want to keep track of old URLs to delete them
+                    val oldLogoUrl = _logoImage.value
+                    if (oldLogoUrl != null && oldLogoUrl != publicUrl) {
+                        Log.d(TAG, "🗑️ Deleting old logo: $oldLogoUrl")
+                        imageRepository.deleteImage(oldLogoUrl)
+                    }
+
+                    _logoImage.value = publicUrl
+                    Log.d(TAG, "✅ Logo image updated in ViewModel")
                 } else {
-                    // Handle upload error
-                    Log.e("ViewModel", "Failed to upload logo image")
+                    Log.e(TAG, "❌ Failed to upload logo image")
                 }
             } catch (e: Exception) {
-                Log.e("ViewModel", "Error uploading logo", e)
+                Log.e(TAG, "❌ Error updating logo", e)
             }
         }
     }
 
-    // Update the mosque image function
+    // Update the mosque image function with extensive debugging
     fun addMosqueImage(uri: String) {
         if (_mosqueImages.value.size < 5) {
             viewModelScope.launch {
                 try {
+                    Log.d(TAG, "=== ADDING MOSQUE IMAGE ===")
+                    Log.d(TAG, "URI: $uri")
+                    Log.d(TAG, "Current images count: ${_mosqueImages.value.size}")
+
                     // Upload to Supabase
                     val publicUrl = imageRepository.uploadImage(Uri.parse(uri), "mosque-images")
                     if (publicUrl != null) {
+                        Log.d(TAG, "✅ Mosque image uploaded successfully: $publicUrl")
                         settingsRepository.addMosqueImage(publicUrl)
+                        Log.d(TAG, "✅ Mosque image added to repository")
                     } else {
-                        // Handle upload error
-                        Log.e("ViewModel", "Failed to upload mosque image")
+                        Log.e(TAG, "❌ Failed to upload mosque image")
                     }
                 } catch (e: Exception) {
-                    Log.e("ViewModel", "Error uploading mosque image", e)
+                    Log.e(TAG, "❌ Error adding mosque image", e)
                 }
             }
+        } else {
+            Log.w(TAG, "⚠️ Cannot add more images, limit reached (5/5)")
         }
     }
 
-    // Update remove function to delete from Supabase
+    // Update remove function to delete from Supabase with debugging
     fun removeMosqueImage(index: Int) {
         if (index in _mosqueImages.value.indices) {
             val imageUrl = _mosqueImages.value[index]
@@ -261,14 +298,27 @@ class MosqueDashboardViewModel(
 
             viewModelScope.launch {
                 try {
+                    Log.d(TAG, "=== REMOVING MOSQUE IMAGE ===")
+                    Log.d(TAG, "Index: $index")
+                    Log.d(TAG, "Image URL: $imageUrl")
+                    Log.d(TAG, "Image ID: $imageId")
+
                     // Delete from Supabase
-                    imageRepository.deleteImage(imageUrl)
-                    // Remove from local database
-                    settingsRepository.removeMosqueImage(imageId)
+                    val deleteSuccess = imageRepository.deleteImage(imageUrl)
+                    if (deleteSuccess) {
+                        Log.d(TAG, "✅ Image deleted from Supabase")
+                        // Remove from local database
+                        settingsRepository.removeMosqueImage(imageId)
+                        Log.d(TAG, "✅ Image removed from local database")
+                    } else {
+                        Log.e(TAG, "❌ Failed to delete image from Supabase")
+                    }
                 } catch (e: Exception) {
-                    Log.e("ViewModel", "Error removing image", e)
+                    Log.e(TAG, "❌ Error removing image", e)
                 }
             }
+        } else {
+            Log.w(TAG, "⚠️ Invalid image index: $index")
         }
     }
 
@@ -290,6 +340,15 @@ class MosqueDashboardViewModel(
         if (timezone in availableTimezones) {
             _prayerTimezone.value = timezone
             fetchPrayerTimes() // Refresh prayer times with new timezone
+        }
+    }
+
+    // Debug function to test Supabase connection
+    fun debugSupabaseConnection() {
+        viewModelScope.launch {
+            Log.d(TAG, "🧪 Manual Supabase connection test triggered")
+            val success = imageRepository.testConnection()
+            Log.d(TAG, if (success) "✅ Connection test passed" else "❌ Connection test failed")
         }
     }
 

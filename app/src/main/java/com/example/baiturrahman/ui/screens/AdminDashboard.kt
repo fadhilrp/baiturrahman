@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
@@ -112,6 +113,9 @@ fun AdminDashboard(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let {
+            scope.launch {
+                snackbarHostState.showSnackbar("Mengupload logo... Periksa logcat untuk detail")
+            }
             viewModel.updateLogoImage(it.toString())
         }
     }
@@ -120,6 +124,9 @@ fun AdminDashboard(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let {
+            scope.launch {
+                snackbarHostState.showSnackbar("Mengupload gambar masjid... Periksa logcat untuk detail")
+            }
             viewModel.addMosqueImage(it.toString())
         }
     }
@@ -186,6 +193,18 @@ fun AdminDashboard(
                     }
                 },
                 actions = {
+                    // Debug Supabase button
+                    IconButton(
+                        onClick = {
+                            viewModel.debugSupabaseConnection()
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Tes koneksi Supabase - periksa logcat")
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.Build, contentDescription = "Debug Supabase")
+                    }
+
                     // Add Force Push button
                     IconButton(
                         onClick = {
@@ -216,22 +235,44 @@ fun AdminDashboard(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Debug Info Section
-//            AdminSection(
-//                title = "Info Debug",
-//                content = {
-//                    Column(
-//                        verticalArrangement = Arrangement.spacedBy(8.dp)
-//                    ) {
-//                        Text("Perangkat: ${devicePreferences.deviceName}")
-//                        Text("Perangkat Utama: ${if (devicePreferences.isMasterDevice) "Ya" else "Tidak"}")
-//                        Text("Sinkronisasi Aktif: ${if (devicePreferences.syncEnabled) "Ya" else "Tidak"}")
-//                        Text("Periksa logcat untuk log sinkronisasi detail dengan tag 'FirestoreSync'")
-//                    }
-//                }
-//            )
+            // Debug Info Section - Always show this
+            AdminSection(
+                title = "Info Debug & Koneksi",
+                content = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("Perangkat: ${devicePreferences.deviceName}")
+                        Text("Perangkat Utama: ${if (devicePreferences.isMasterDevice) "Ya" else "Tidak"}")
+                        Text("Sinkronisasi Aktif: ${if (devicePreferences.syncEnabled) "Ya" else "Tidak"}")
 
-            // Sync Settings Section - moved to be right after Debug Info
+                        // Debug buttons
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    viewModel.debugSupabaseConnection()
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Tes koneksi Supabase dimulai - periksa logcat dengan filter 'ImageRepository'")
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Blue)
+                            ) {
+                                Text("Tes Supabase", color = Color.White)
+                            }
+                        }
+
+                        Text(
+                            text = "💡 Tip: Buka logcat dan filter dengan 'ImageRepository' atau 'MosqueDashboardViewModel' untuk melihat log detail upload",
+                            color = Color.Gray,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            )
+
+            // Sync Settings Section
             AdminSection(
                 title = "Pengaturan Sinkronisasi",
                 content = {
@@ -350,6 +391,9 @@ fun AdminDashboard(
                                             ) == PackageManager.PERMISSION_GRANTED
 
                                             if (hasPermission) {
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar("Mengupload logo... Periksa logcat untuk detail")
+                                                }
                                                 logoImageLauncher.launch("image/*")
                                             } else {
                                                 requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_MEDIA_IMAGES))
@@ -361,6 +405,9 @@ fun AdminDashboard(
                                             ) == PackageManager.PERMISSION_GRANTED
 
                                             if (hasPermission) {
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar("Mengupload logo... Periksa logcat untuk detail")
+                                                }
                                                 logoImageLauncher.launch("image/*")
                                             } else {
                                                 requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
@@ -504,7 +551,12 @@ fun AdminDashboard(
 
                                             // Delete button
                                             IconButton(
-                                                onClick = { viewModel.removeMosqueImage(index) },
+                                                onClick = {
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("Menghapus gambar... Periksa logcat untuk detail")
+                                                    }
+                                                    viewModel.removeMosqueImage(index)
+                                                },
                                                 modifier = Modifier
                                                     .align(Alignment.TopEnd)
                                                     .size(32.dp)
@@ -546,7 +598,12 @@ fun AdminDashboard(
                             // Add image button (only if less than 5 images)
                             if (mosqueImages.size < 5) {
                                 Button(
-                                    onClick = { checkAndRequestPermissions() },
+                                    onClick = {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Memilih gambar untuk diupload...")
+                                        }
+                                        checkAndRequestPermissions()
+                                    },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = emeraldGreen
                                     ),
