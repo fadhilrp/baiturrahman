@@ -12,7 +12,7 @@ import com.example.baiturrahman.data.local.entity.MosqueSettings
 
 @Database(
     entities = [MosqueSettings::class, MosqueImage::class],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -25,6 +25,22 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        // Migration from version 1 to 2 - add new fields to mosque_images
+        private val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                Log.d(TAG, "Migrating database from version 1 to 2")
+
+                // Add new columns to mosque_images table
+                database.execSQL("ALTER TABLE mosque_images ADD COLUMN uploadDate INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE mosque_images ADD COLUMN fileSize INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE mosque_images ADD COLUMN mimeType TEXT NOT NULL DEFAULT 'image/jpeg'")
+                database.execSQL("ALTER TABLE mosque_images ADD COLUMN uploadStatus TEXT NOT NULL DEFAULT 'completed'")
+                database.execSQL("ALTER TABLE mosque_images ADD COLUMN supabaseId TEXT")
+
+                Log.d(TAG, "Migration completed successfully")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 Log.d(TAG, "Creating new database instance")
@@ -33,6 +49,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "baiturrahman_database"
                 )
+                    .addMigrations(MIGRATION_1_2)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

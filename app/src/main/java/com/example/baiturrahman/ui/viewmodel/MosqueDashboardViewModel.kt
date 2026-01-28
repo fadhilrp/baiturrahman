@@ -127,7 +127,9 @@ class MosqueDashboardViewModel(
         viewModelScope.launch {
             // Load images with proper synchronization
             settingsRepository.mosqueImages.collectLatest { images ->
-                val imageUris = images.sortedBy { it.displayOrder }.map { it.imageUri }
+                // Filter out images with null URIs (incomplete uploads)
+                val completedImages = images.filter { !it.imageUri.isNullOrBlank() }
+                val imageUris = completedImages.sortedBy { it.displayOrder }.map { it.imageUri }
 
                 // Set syncing flag to prevent conflicts
                 isSliderSyncing = true
@@ -136,7 +138,7 @@ class MosqueDashboardViewModel(
 
                 // Update image ID map
                 imageIdMap.clear()
-                images.forEach { image ->
+                completedImages.forEach { image ->
                     imageIdMap[image.imageUri] = image.id
                 }
 
@@ -240,8 +242,8 @@ class MosqueDashboardViewModel(
                 Log.d(TAG, "=== UPDATING LOGO IMAGE ===")
                 Log.d(TAG, "URI: $uri")
 
-                // Upload to Supabase
-                val publicUrl = imageRepository.uploadImage(Uri.parse(uri), "logos")
+                // Upload to Supabase (displayOrder = 0 for logos, not used in slider)
+                val publicUrl = imageRepository.uploadImage(Uri.parse(uri), "logos", displayOrder = 0)
                 if (publicUrl != null) {
                     Log.d(TAG, "✅ Logo uploaded successfully: $publicUrl")
 
@@ -249,7 +251,7 @@ class MosqueDashboardViewModel(
                     val oldLogoUrl = _logoImage.value
                     if (oldLogoUrl != null && oldLogoUrl != publicUrl) {
                         Log.d(TAG, "🗑️ Deleting old logo: $oldLogoUrl")
-                        imageRepository.deleteImage(oldLogoUrl)
+                        imageRepository.deleteImage(oldLogoUrl, null)
                     }
 
                     _logoImage.value = publicUrl
@@ -272,8 +274,15 @@ class MosqueDashboardViewModel(
                     Log.d(TAG, "URI: $uri")
                     Log.d(TAG, "Current images count: ${_mosqueImages.value.size}")
 
-                    // Upload to Supabase
-                    val publicUrl = imageRepository.uploadImage(Uri.parse(uri), "mosque-images")
+                    // Get current count for display order
+                    val currentCount = _mosqueImages.value.size
+
+                    // Upload to Supabase with displayOrder
+                    val publicUrl = imageRepository.uploadImage(
+                        Uri.parse(uri),
+                        "mosque-images",
+                        displayOrder = currentCount
+                    )
                     if (publicUrl != null) {
                         Log.d(TAG, "✅ Mosque image uploaded successfully: $publicUrl")
                         settingsRepository.addMosqueImage(publicUrl)
@@ -301,12 +310,14 @@ class MosqueDashboardViewModel(
                     Log.d(TAG, "=== REMOVING MOSQUE IMAGE ===")
                     Log.d(TAG, "Index: $index")
                     Log.d(TAG, "Image URL: $imageUrl")
-                    Log.d(TAG, "Image ID: $imageId")
+                    Log.d(TAG, "Image ID (Room): $imageId")
 
-                    // Delete from Supabase
-                    val deleteSuccess = imageRepository.deleteImage(imageUrl)
+                    // Note: supabaseId should be extracted from the URL or stored in Room
+                    // For now, delete with URL only and Room ID
+                    // The sync service will handle PostgreSQL cleanup
+                    val deleteSuccess = imageRepository.deleteImage(imageUrl, null)
                     if (deleteSuccess) {
-                        Log.d(TAG, "✅ Image deleted from Supabase")
+                        Log.d(TAG, "✅ Image deleted from Supabase Storage")
                         // Remove from local database
                         settingsRepository.removeMosqueImage(imageId)
                         Log.d(TAG, "✅ Image removed from local database")

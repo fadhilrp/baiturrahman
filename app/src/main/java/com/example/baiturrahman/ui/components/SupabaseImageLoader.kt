@@ -1,5 +1,6 @@
 package com.example.baiturrahman.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -55,6 +56,16 @@ fun SupabaseImage(
         onState = { state ->
             isLoading = state is AsyncImagePainter.State.Loading
             hasError = state is AsyncImagePainter.State.Error
+
+            // Log errors for debugging
+            if (state is AsyncImagePainter.State.Error) {
+                Log.e("SupabaseImage", "═══════════════════════════════════════")
+                Log.e("SupabaseImage", "❌ FAILED TO LOAD IMAGE")
+                Log.e("SupabaseImage", "URL: $imageUrl")
+                Log.e("SupabaseImage", "Error: ${state.result.throwable.message}")
+                Log.e("SupabaseImage", "Exception type: ${state.result.throwable.javaClass.simpleName}")
+                Log.e("SupabaseImage", "═══════════════════════════════════════", state.result.throwable)
+            }
         }
     )
 

@@ -7,6 +7,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import com.example.baiturrahman.R
+import com.example.baiturrahman.ui.components.SupabaseImage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -108,6 +110,9 @@ fun AdminDashboard(
     val quoteTextCharCount = quoteText.length
     val marqueeTextCharCount = marqueeText.length
 
+    // Manual sync state
+    var isSyncing by remember { mutableStateOf(false) }
+
     // Image picker launchers
     val logoImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -181,7 +186,7 @@ fun AdminDashboard(
     var isMasterDevice by remember { mutableStateOf(devicePreferences.isMasterDevice) }
     var deviceName by remember { mutableStateOf(devicePreferences.deviceName) }
     var syncEnabled by remember { mutableStateOf(devicePreferences.syncEnabled) }
-    val firestoreSync = (context.applicationContext as BaiturrahmanApp).firestoreSync
+    val syncService = (context.applicationContext as BaiturrahmanApp).syncService
 
     Scaffold(
         topBar = {
@@ -205,11 +210,11 @@ fun AdminDashboard(
                         Icon(Icons.Default.Build, contentDescription = "Debug Supabase")
                     }
 
-                    // Add Force Push button
+                    // Add Force Sync button
                     IconButton(
                         onClick = {
-                            firestoreSync.forcePush()
                             scope.launch {
+                                syncService.forceSyncNow()
                                 snackbarHostState.showSnackbar("Paksa sinkronisasi dipicu - periksa log")
                             }
                         }
@@ -538,15 +543,13 @@ fun AdminDashboard(
                                                 .clip(RoundedCornerShape(8.dp))
                                                 .border(1.dp, emeraldGreen, RoundedCornerShape(8.dp))
                                         ) {
-                                            Image(
-                                                painter = rememberAsyncImagePainter(
-                                                    ImageRequest.Builder(context)
-                                                        .data(imageUri.toUri())
-                                                        .build()
-                                                ),
+                                            // Use SupabaseImage for better error handling
+                                            SupabaseImage(
+                                                imageUrl = imageUri,
                                                 contentDescription = "Gambar Masjid ${index + 1}",
                                                 modifier = Modifier.fillMaxSize(),
-                                                contentScale = ContentScale.Crop
+                                                contentScale = ContentScale.Crop,
+                                                fallbackResourceId = R.drawable.mosque
                                             )
 
                                             // Delete button
@@ -658,10 +661,13 @@ fun AdminDashboard(
                         viewModel.updateMarqueeText(marqueeText)
                         viewModel.updatePrayerAddress(prayerAddress)
                         viewModel.updatePrayerTimezone(prayerTimezone)
-                        firestoreSync.setDeviceName(deviceName)
-                        firestoreSync.setMasterDevice(isMasterDevice)
-                        firestoreSync.setSyncEnabled(syncEnabled)
-                        viewModel.saveAllSettings() // This should trigger the local listeners
+
+                        // Update device preferences
+                        devicePreferences.deviceName = deviceName
+                        devicePreferences.isMasterDevice = isMasterDevice
+                        devicePreferences.syncEnabled = syncEnabled
+
+                        viewModel.saveAllSettings() // This will trigger push to PostgreSQL
                         onClose()
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -672,6 +678,35 @@ fun AdminDashboard(
                     Icon(Icons.Default.Check, contentDescription = "Simpan Perubahan")
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Simpan Perubahan")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Manual Sync Button
+                Button(
+                    onClick = {
+                        isSyncing = true
+                        scope.launch {
+                            try {
+                                snackbarHostState.showSnackbar("Memulai sinkronisasi manual...")
+                                syncService.forceSyncNow()
+                                snackbarHostState.showSnackbar("✅ Sinkronisasi berhasil! Periksa logcat untuk detail.")
+                            } catch (e: Exception) {
+                                snackbarHostState.showSnackbar("❌ Sinkronisasi gagal: ${e.message}")
+                            } finally {
+                                isSyncing = false
+                            }
+                        }
+                    },
+                    enabled = !isSyncing,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isSyncing) Color.Gray else Color(0xFF2196F3)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Paksa Sinkronisasi")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (isSyncing) "Sinkronisasi..." else "Paksa Sinkronisasi Sekarang")
                 }
             } else {
                 // Show message for non-master devices
@@ -711,9 +746,10 @@ fun AdminDashboard(
                 // Save Button for sync settings only
                 Button(
                     onClick = {
-                        firestoreSync.setDeviceName(deviceName)
-                        firestoreSync.setMasterDevice(isMasterDevice)
-                        firestoreSync.setSyncEnabled(syncEnabled)
+                        // Update device preferences
+                        devicePreferences.deviceName = deviceName
+                        devicePreferences.isMasterDevice = isMasterDevice
+                        devicePreferences.syncEnabled = syncEnabled
                         onClose()
                     },
                     colors = ButtonDefaults.buttonColors(

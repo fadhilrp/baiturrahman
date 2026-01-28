@@ -7,9 +7,18 @@ import androidx.room.PrimaryKey
 data class MosqueImage(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val imageUri: String = "",
-    val displayOrder: Int = 0 // To maintain the order of images
-) {
-    // No-argument constructor required by Firestore
-    constructor() : this(0, "", 0)
-}
+
+    val imageUri: String = "", // Supabase Storage public URL
+
+    val displayOrder: Int = 0, // Order in slider
+
+    val uploadDate: Long = System.currentTimeMillis(), // Upload timestamp
+
+    val fileSize: Long = 0, // Size in bytes
+
+    val mimeType: String = "image/jpeg", // MIME type
+
+    val uploadStatus: String = "completed", // uploading, completed, failed
+
+    val supabaseId: String? = null // UUID from PostgreSQL (optional)
+)
