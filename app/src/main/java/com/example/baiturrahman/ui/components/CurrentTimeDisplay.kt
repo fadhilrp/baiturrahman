@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.ui.theme.EmeraldGradient
 import java.text.SimpleDateFormat
@@ -40,7 +41,7 @@ fun CurrentTimeDisplay(prayerData: PrayerData?) {
     val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     var timeString by remember { mutableStateOf(timeFormat.format(Date())) }
 
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner) {
         val handler = Handler(Looper.getMainLooper())
