@@ -45,6 +45,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -69,11 +70,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
-import coil3.compose.rememberAsyncImagePainter
-import coil3.request.ImageRequest
 import com.example.baiturrahman.BaiturrahmanApp
-import com.example.baiturrahman.ui.theme.emeraldGreen
+import com.example.baiturrahman.ui.theme.DarkBackground
+import com.example.baiturrahman.ui.theme.DarkSurface
+import com.example.baiturrahman.ui.theme.EmeraldGreen
+import com.example.baiturrahman.ui.theme.EmeraldLight
+import com.example.baiturrahman.ui.theme.GlassBorder
+import com.example.baiturrahman.ui.theme.TextPrimary
+import com.example.baiturrahman.ui.theme.TextSecondary
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
 import com.example.baiturrahman.utils.DevicePreferences
 import kotlinx.coroutines.launch
@@ -89,31 +93,26 @@ fun AdminDashboard(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // Local state for form fields
     var quoteText by remember { mutableStateOf(viewModel.quoteText.value) }
     var mosqueName by remember { mutableStateOf(viewModel.mosqueName.value) }
     var mosqueLocation by remember { mutableStateOf(viewModel.mosqueLocation.value) }
     var marqueeText by remember { mutableStateOf(viewModel.marqueeText.value) }
     val mosqueImages by viewModel.mosqueImages.collectAsState()
 
-    // Prayer API settings
     var prayerAddress by remember { mutableStateOf(viewModel.prayerAddress.value) }
     var prayerTimezone by remember { mutableStateOf(viewModel.prayerTimezone.value) }
     var timezoneMenuExpanded by remember { mutableStateOf(false) }
 
-    // Character count states
     val mosqueNameCharCount = mosqueName.length
     val mosqueLocationCharCount = mosqueLocation.length
     val quoteTextCharCount = quoteText.length
     val marqueeTextCharCount = marqueeText.length
 
-    // Loading states from ViewModel
     val isSaving by viewModel.isSaving.collectAsState()
     val isUploadingImage by viewModel.isUploadingImage.collectAsState()
     val isUploadingLogo by viewModel.isUploadingLogo.collectAsState()
     val isDeletingImage by viewModel.isDeletingImage.collectAsState()
 
-    // Image picker launchers
     val logoImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -130,26 +129,21 @@ fun AdminDashboard(
         }
     }
 
-    // Permission launcher
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val allGranted = permissions.entries.all { it.value }
         if (allGranted) {
-            // All permissions granted, launch image picker
             mosqueImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         } else {
-            // Show a message that permissions are required
             scope.launch {
                 snackbarHostState.showSnackbar("Izin penyimpanan diperlukan untuk memilih gambar")
             }
         }
     }
 
-    // Function to check and request permissions
     fun checkAndRequestPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // For Android 13+ (API 33+), use READ_MEDIA_IMAGES
             val hasPermission = ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.READ_MEDIA_IMAGES
@@ -161,7 +155,6 @@ fun AdminDashboard(
                 requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_MEDIA_IMAGES))
             }
         } else {
-            // For Android 6-12, use READ_EXTERNAL_STORAGE
             val hasPermission = ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.READ_EXTERNAL_STORAGE
@@ -175,14 +168,25 @@ fun AdminDashboard(
         }
     }
 
-    // Use koinInject() to get DevicePreferences
     val devicePreferences = koinInject<DevicePreferences>()
     var isMasterDevice by remember { mutableStateOf(devicePreferences.isMasterDevice) }
     var deviceName by remember { mutableStateOf(devicePreferences.deviceName) }
     var syncEnabled by remember { mutableStateOf(devicePreferences.syncEnabled) }
     val syncService = (context.applicationContext as BaiturrahmanApp).syncService
 
+    // Shared OutlinedTextField colors for dark theme
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = EmeraldGreen,
+        unfocusedBorderColor = GlassBorder,
+        focusedLabelColor = EmeraldGreen,
+        unfocusedLabelColor = TextSecondary,
+        cursorColor = EmeraldGreen,
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary
+    )
+
     Scaffold(
+        containerColor = DarkBackground,
         topBar = {
             TopAppBar(
                 title = { Text("Dashboard Admin") },
@@ -192,10 +196,10 @@ fun AdminDashboard(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = emeraldGreen,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White
+                    containerColor = DarkSurface,
+                    titleContentColor = TextPrimary,
+                    navigationIconContentColor = TextPrimary,
+                    actionIconContentColor = TextPrimary
                 )
             )
         },
@@ -216,51 +220,47 @@ fun AdminDashboard(
                     Column(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Device Name
                         OutlinedTextField(
                             value = deviceName,
                             onValueChange = { deviceName = it },
                             label = { Text("Nama Perangkat") },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = textFieldColors
                         )
 
-                        // Master Device Toggle
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Perangkat Utama (dapat mengubah TV lain)")
+                            Text("Perangkat Utama (dapat mengubah TV lain)", color = TextPrimary)
                             androidx.compose.material3.Switch(
                                 checked = isMasterDevice,
                                 onCheckedChange = { isMasterDevice = it }
                             )
                         }
 
-                        // Sync Enabled Toggle
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Aktifkan Sinkronisasi")
+                            Text("Aktifkan Sinkronisasi", color = TextPrimary)
                             androidx.compose.material3.Switch(
                                 checked = syncEnabled,
                                 onCheckedChange = { syncEnabled = it }
                             )
                         }
 
-                        // Info text
                         Text(
                             text = "Ketika sinkronisasi diaktifkan, perangkat ini akan menerima pembaruan dari perangkat utama. Jika ini adalah perangkat utama, perubahan yang dibuat di sini akan memperbarui semua TV lain.",
-                            color = Color.Gray,
+                            color = TextSecondary,
                             fontSize = 14.sp
                         )
                     }
                 }
             )
 
-            // Only show the sections below if Master Device is enabled
             if (isMasterDevice) {
                 // Header Section
                 AdminSection(
@@ -269,7 +269,6 @@ fun AdminDashboard(
                         Column(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            // Mosque Name with character limit
                             OutlinedTextField(
                                 value = mosqueName,
                                 onValueChange = {
@@ -277,18 +276,18 @@ fun AdminDashboard(
                                 },
                                 label = { Text("Nama Masjid") },
                                 modifier = Modifier.fillMaxWidth(),
+                                colors = textFieldColors,
                                 supportingText = {
                                     Text(
                                         text = "$mosqueNameCharCount/35",
                                         modifier = Modifier.fillMaxWidth(),
                                         textAlign = TextAlign.End,
-                                        color = if (mosqueNameCharCount >= 35) Color.Red else Color.Gray
+                                        color = if (mosqueNameCharCount >= 35) Color.Red else TextSecondary
                                     )
                                 },
                                 isError = mosqueNameCharCount >= 35
                             )
 
-                            // Mosque Location with character limit
                             OutlinedTextField(
                                 value = mosqueLocation,
                                 onValueChange = {
@@ -296,18 +295,18 @@ fun AdminDashboard(
                                 },
                                 label = { Text("Lokasi Masjid") },
                                 modifier = Modifier.fillMaxWidth(),
+                                colors = textFieldColors,
                                 supportingText = {
                                     Text(
                                         text = "$mosqueLocationCharCount/25",
                                         modifier = Modifier.fillMaxWidth(),
                                         textAlign = TextAlign.End,
-                                        color = if (mosqueLocationCharCount >= 25) Color.Red else Color.Gray
+                                        color = if (mosqueLocationCharCount >= 25) Color.Red else TextSecondary
                                     )
                                 },
                                 isError = mosqueLocationCharCount >= 25
                             )
 
-                            // Logo Image
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -315,12 +314,12 @@ fun AdminDashboard(
                             ) {
                                 Text(
                                     text = "Logo Masjid:",
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextPrimary
                                 )
 
                                 Button(
                                     onClick = {
-                                        // Check permissions for logo image too
                                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                             val hasPermission = ContextCompat.checkSelfPermission(
                                                 context,
@@ -347,8 +346,9 @@ fun AdminDashboard(
                                     },
                                     enabled = !isUploadingLogo,
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = emeraldGreen
-                                    )
+                                        containerColor = EmeraldGreen
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
                                     if (isUploadingLogo) {
                                         CircularProgressIndicator(
@@ -376,20 +376,20 @@ fun AdminDashboard(
                         Column(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            // Address Input
                             OutlinedTextField(
                                 value = prayerAddress,
                                 onValueChange = { prayerAddress = it },
                                 label = { Text("Alamat Waktu Sholat") },
                                 modifier = Modifier.fillMaxWidth(),
-                                placeholder = { Text("contoh: Lebak Bulus, Jakarta, ID") }
+                                colors = textFieldColors,
+                                placeholder = { Text("contoh: Lebak Bulus, Jakarta, ID", color = TextSecondary) }
                             )
 
-                            // Timezone Dropdown
                             Column {
                                 Text(
                                     text = "Zona Waktu:",
                                     fontWeight = FontWeight.Medium,
+                                    color = TextPrimary,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
 
@@ -399,16 +399,17 @@ fun AdminDashboard(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .border(1.dp, Color.Gray, RoundedCornerShape(4.dp))
+                                            .border(1.dp, GlassBorder, RoundedCornerShape(4.dp))
                                             .clickable { timezoneMenuExpanded = true }
                                             .padding(16.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(prayerTimezone)
+                                        Text(prayerTimezone, color = TextPrimary)
                                         Icon(
                                             imageVector = Icons.Default.ArrowDropDown,
-                                            contentDescription = "Pilih Zona Waktu"
+                                            contentDescription = "Pilih Zona Waktu",
+                                            tint = TextSecondary
                                         )
                                     }
 
@@ -433,7 +434,7 @@ fun AdminDashboard(
                     }
                 )
 
-                // Quote Section with character limit
+                // Quote Section
                 AdminSection(
                     title = "Pengaturan Kutipan",
                     content = {
@@ -444,13 +445,14 @@ fun AdminDashboard(
                             },
                             label = { Text("Teks Kutipan") },
                             modifier = Modifier.fillMaxWidth(),
+                            colors = textFieldColors,
                             minLines = 3,
                             supportingText = {
                                 Text(
                                     text = "$quoteTextCharCount/100",
                                     modifier = Modifier.fillMaxWidth(),
                                     textAlign = TextAlign.End,
-                                    color = if (quoteTextCharCount >= 100) Color.Red else Color.Gray
+                                    color = if (quoteTextCharCount >= 100) Color.Red else TextSecondary
                                 )
                             },
                             isError = quoteTextCharCount >= 100
@@ -467,11 +469,10 @@ fun AdminDashboard(
                         ) {
                             Text(
                                 text = "Gambar yang diupload akan otomatis tersimpan dan disinkronkan ke database.",
-                                color = Color.Gray,
+                                color = TextSecondary,
                                 fontSize = 13.sp
                             )
 
-                            // Current images
                             if (mosqueImages.isNotEmpty()) {
                                 LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -484,9 +485,8 @@ fun AdminDashboard(
                                             modifier = Modifier
                                                 .size(120.dp)
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .border(1.dp, emeraldGreen, RoundedCornerShape(8.dp))
+                                                .border(1.dp, EmeraldGreen, RoundedCornerShape(8.dp))
                                         ) {
-                                            // Use SupabaseImage - no fallback so deleted images don't show placeholder
                                             SupabaseImage(
                                                 imageUrl = imageUri,
                                                 contentDescription = "Gambar Masjid ${index + 1}",
@@ -495,7 +495,6 @@ fun AdminDashboard(
                                                 fallbackResourceId = null
                                             )
 
-                                            // Delete button
                                             IconButton(
                                                 onClick = {
                                                     viewModel.removeMosqueImage(index)
@@ -505,7 +504,7 @@ fun AdminDashboard(
                                                     .align(Alignment.TopEnd)
                                                     .size(32.dp)
                                                     .background(
-                                                        Color.White.copy(alpha = 0.7f),
+                                                        DarkBackground.copy(alpha = 0.7f),
                                                         CircleShape
                                                     )
                                             ) {
@@ -517,20 +516,19 @@ fun AdminDashboard(
                                                 )
                                             }
 
-                                            // Image number
                                             Box(
                                                 modifier = Modifier
                                                     .align(Alignment.BottomStart)
                                                     .padding(4.dp)
                                                     .background(
-                                                        Color.Black.copy(alpha = 0.7f),
+                                                        DarkBackground.copy(alpha = 0.7f),
                                                         RoundedCornerShape(4.dp)
                                                     )
                                                     .padding(horizontal = 8.dp, vertical = 2.dp)
                                             ) {
                                                 Text(
                                                     text = "${index + 1}",
-                                                    color = Color.White,
+                                                    color = TextPrimary,
                                                     fontSize = 12.sp
                                                 )
                                             }
@@ -539,7 +537,6 @@ fun AdminDashboard(
                                 }
                             }
 
-                            // Add image button (only if less than 5 images)
                             if (mosqueImages.size < 5) {
                                 Button(
                                     onClick = {
@@ -547,8 +544,9 @@ fun AdminDashboard(
                                     },
                                     enabled = !isUploadingImage,
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = emeraldGreen
+                                        containerColor = EmeraldGreen
                                     ),
+                                    shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     if (isUploadingImage) {
@@ -568,7 +566,7 @@ fun AdminDashboard(
                             } else {
                                 Text(
                                     text = "Jumlah maksimum gambar tercapai (5/5)",
-                                    color = Color.Gray,
+                                    color = TextSecondary,
                                     fontSize = 14.sp,
                                     modifier = Modifier.padding(vertical = 8.dp)
                                 )
@@ -577,7 +575,7 @@ fun AdminDashboard(
                     }
                 )
 
-                // Marquee Text Section with character limit
+                // Marquee Text Section
                 AdminSection(
                     title = "Teks Berjalan",
                     content = {
@@ -588,12 +586,13 @@ fun AdminDashboard(
                             },
                             label = { Text("Teks Berjalan") },
                             modifier = Modifier.fillMaxWidth(),
+                            colors = textFieldColors,
                             supportingText = {
                                 Text(
                                     text = "$marqueeTextCharCount/100",
                                     modifier = Modifier.fillMaxWidth(),
                                     textAlign = TextAlign.End,
-                                    color = if (marqueeTextCharCount >= 100) Color.Red else Color.Gray
+                                    color = if (marqueeTextCharCount >= 100) Color.Red else TextSecondary
                                 )
                             },
                             isError = marqueeTextCharCount >= 100
@@ -601,14 +600,13 @@ fun AdminDashboard(
                     }
                 )
 
-                // Save Button - only show for master devices
+                // Save Button
                 Button(
                     onClick = {
                         val oldName = devicePreferences.deviceName
                         val newName = deviceName
 
                         scope.launch {
-                            // Rename remote data if device name changed
                             if (oldName != newName && newName.isNotBlank()) {
                                 val success = viewModel.renameDevice(oldName, newName)
                                 if (!success) {
@@ -624,23 +622,22 @@ fun AdminDashboard(
                             viewModel.updatePrayerAddress(prayerAddress)
                             viewModel.updatePrayerTimezone(prayerTimezone)
 
-                            // Update device preferences
                             devicePreferences.deviceName = newName
                             devicePreferences.isMasterDevice = isMasterDevice
                             devicePreferences.syncEnabled = syncEnabled
 
-                            // Restart sync to pick up new device name
                             syncService.stopSync()
                             syncService.startSync()
 
-                            viewModel.saveAllSettings() // This will trigger push to PostgreSQL
+                            viewModel.saveAllSettings()
                             onClose()
                         }
                     },
                     enabled = !isSaving,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = emeraldGreen
+                        containerColor = EmeraldGreen
                     ),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (isSaving) {
@@ -658,7 +655,7 @@ fun AdminDashboard(
                     }
                 }
             } else {
-                // Show message for non-master devices
+                // Non-master device sections
                 AdminSection(
                     title = "Pengaturan Perangkat",
                     content = {
@@ -667,25 +664,26 @@ fun AdminDashboard(
                         ) {
                             Text(
                                 text = "Perangkat ini dikonfigurasi sebagai perangkat non-utama. Perangkat ini akan menerima pembaruan dari perangkat utama tetapi tidak dapat membuat perubahan pada pengaturan masjid.",
-                                color = Color.Gray,
+                                color = TextSecondary,
                                 fontSize = 14.sp
                             )
 
                             Text(
                                 text = "Untuk membuat perubahan, pilih salah satu:",
                                 fontWeight = FontWeight.Medium,
+                                color = TextPrimary,
                                 fontSize = 14.sp
                             )
 
                             Text(
-                                text = "• Aktifkan 'Perangkat Utama' di atas untuk memungkinkan perangkat ini mengontrol pengaturan",
-                                color = Color.Gray,
+                                text = "\u2022 Aktifkan 'Perangkat Utama' di atas untuk memungkinkan perangkat ini mengontrol pengaturan",
+                                color = TextSecondary,
                                 fontSize = 14.sp
                             )
 
                             Text(
-                                text = "• Gunakan perangkat utama yang ditunjuk untuk membuat perubahan",
-                                color = Color.Gray,
+                                text = "\u2022 Gunakan perangkat utama yang ditunjuk untuk membuat perubahan",
+                                color = TextSecondary,
                                 fontSize = 14.sp
                             )
                         }
@@ -699,7 +697,6 @@ fun AdminDashboard(
                         val newName = deviceName
 
                         scope.launch {
-                            // Rename remote data if device name changed
                             if (oldName != newName && newName.isNotBlank()) {
                                 val success = viewModel.renameDevice(oldName, newName)
                                 if (!success) {
@@ -708,12 +705,10 @@ fun AdminDashboard(
                                 }
                             }
 
-                            // Update device preferences
                             devicePreferences.deviceName = newName
                             devicePreferences.isMasterDevice = isMasterDevice
                             devicePreferences.syncEnabled = syncEnabled
 
-                            // Restart sync to pick up new device name
                             syncService.stopSync()
                             syncService.startSync()
 
@@ -722,8 +717,9 @@ fun AdminDashboard(
                     },
                     enabled = !isSaving,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = emeraldGreen
+                        containerColor = EmeraldGreen
                     ),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (isSaving) {
@@ -757,17 +753,20 @@ fun AdminSection(
             text = title,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = emeraldGreen
+            color = EmeraldLight
         )
 
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, GlassBorder, RoundedCornerShape(12.dp)),
             colors = CardDefaults.cardColors(
-                containerColor = Color.White
+                containerColor = DarkSurface
             ),
             elevation = CardDefaults.cardElevation(
-                defaultElevation = 2.dp
-            )
+                defaultElevation = 0.dp
+            ),
+            shape = RoundedCornerShape(12.dp)
         ) {
             Box(
                 modifier = Modifier

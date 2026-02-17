@@ -2,11 +2,15 @@ package com.example.baiturrahman.ui.components
 
 import android.content.Context
 import android.media.MediaPlayer
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -18,15 +22,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.baiturrahman.R
 import com.example.baiturrahman.data.model.PrayerTimings
-import com.example.baiturrahman.ui.theme.emeraldGreen
+import com.example.baiturrahman.ui.theme.DarkBackground
+import com.example.baiturrahman.ui.theme.EmeraldGreen
+import com.example.baiturrahman.ui.theme.GlassBorder
+import com.example.baiturrahman.ui.theme.GlassWhite
+import com.example.baiturrahman.ui.theme.GoldAccent
+import com.example.baiturrahman.ui.theme.TextOnAccent
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -50,11 +59,9 @@ fun NextPrayerCountdown(
     var shouldPlayPrayerAlarm by remember { mutableStateOf(false) }
     var shouldPlayIqomahAlarm by remember { mutableStateOf(false) }
 
-    // MediaPlayer instances for alarms
     val prayerAlarmPlayer = remember { MediaPlayer.create(context, R.raw.prayer_alarm) }
     val iqomahAlarmPlayer = remember { MediaPlayer.create(context, R.raw.prayer_alarm) }
 
-    // Clean up MediaPlayer when component is disposed
     DisposableEffect(Unit) {
         onDispose {
             prayerAlarmPlayer.release()
@@ -62,7 +69,6 @@ fun NextPrayerCountdown(
         }
     }
 
-    // Update current time every second
     LaunchedEffect(Unit) {
         while(true) {
             currentTime = LocalDateTime.now()
@@ -70,7 +76,6 @@ fun NextPrayerCountdown(
         }
     }
 
-    // Get current time as LocalTime for comparison
     val currentTimeObj = LocalTime.of(
         currentTime.hour,
         currentTime.minute,
@@ -96,10 +101,8 @@ fun NextPrayerCountdown(
         "Isya" to (timings?.Isha?.substringBefore(" ") ?: "XX:XX")
     )
 
-    // Order of prayer times for comparison
     val orderedPrayers = listOf("Imsak", "Shubuh", "Syuruq", "Dhuha", "Dzuhur", "Ashar", "Maghrib", "Isya")
 
-    // Convert prayer times to LocalTime objects
     val prayerTimeObjects = prayerTimes.mapValues { (_, timeStr) ->
         try {
             LocalTime.parse(timeStr)
@@ -108,31 +111,23 @@ fun NextPrayerCountdown(
         }
     }
 
-    // Check if we're in iqomah period or if we just hit a prayer time
     LaunchedEffect(currentTimeObj) {
-        // If we have an iqomah end time set, check if we're still in iqomah period
         if (iqomahEndTime != null) {
             if (currentTimeObj.isAfter(iqomahEndTime) || currentTimeObj == iqomahEndTime) {
-                // Iqomah period is over
                 isIqomahTime = false
                 iqomahEndTime = null
                 shouldPlayIqomahAlarm = true
             }
         } else {
-            // Check if we just hit a prayer time
             for ((prayerName, prayerTime) in prayerTimeObjects) {
                 if (prayerTime != null &&
-                    // Skip Syuruq and Dhuha as they don't have iqomah
                     prayerName != "Syuruq" && prayerName != "Dhuha" && prayerName != "Imsak" &&
-                    // Check if we're exactly at the prayer time or just passed it (within 1 second)
                     (currentTimeObj == prayerTime ||
                             (currentTimeObj.isAfter(prayerTime) &&
                                     ChronoUnit.SECONDS.between(prayerTime, currentTimeObj) < 2))) {
 
-                    // We just hit a prayer time, start iqomah countdown
                     isIqomahTime = true
                     currentPrayerName = prayerName
-                    // Set iqomah end time to 10 minutes after prayer time
                     iqomahEndTime = prayerTime.plusMinutes(10)
                     shouldPlayPrayerAlarm = true
                     break
@@ -141,7 +136,6 @@ fun NextPrayerCountdown(
         }
     }
 
-    // Play prayer alarm when needed
     LaunchedEffect(shouldPlayPrayerAlarm) {
         if (shouldPlayPrayerAlarm) {
             playAlarmSound(context, prayerAlarmPlayer)
@@ -149,7 +143,6 @@ fun NextPrayerCountdown(
         }
     }
 
-    // Play iqomah alarm when needed
     LaunchedEffect(shouldPlayIqomahAlarm) {
         if (shouldPlayIqomahAlarm) {
             playAlarmSound(context, iqomahAlarmPlayer)
@@ -157,36 +150,51 @@ fun NextPrayerCountdown(
         }
     }
 
-    // Find current and next prayer if not in iqomah time
     val (currentPrayer, nextPrayer) = if (!isIqomahTime) {
         findCurrentAndNextPrayer(currentTimeObj, prayerTimeObjects, orderedPrayers)
     } else {
         Pair(currentPrayerName, currentPrayerName)
     }
 
-    // Calculate time remaining
     val displayText = if (isIqomahTime) {
-        // Calculate time remaining until iqomah ends
         val timeRemaining = calculateTimeRemaining(currentTimeObj, iqomahEndTime ?: LocalTime.MIDNIGHT)
         "Iqomah $currentPrayerName $timeRemaining"
     } else {
-        // Calculate time remaining until next prayer
         val timeRemaining = calculateTimeRemaining(currentTimeObj, prayerTimeObjects[nextPrayer] ?: LocalTime.MIDNIGHT)
         "$nextPrayer $timeRemaining"
     }
 
-    // UI for countdown
+    // Animated colors for smooth normal <-> iqomah transition
+    val bgColor by animateColorAsState(
+        targetValue = if (isIqomahTime) GoldAccent.copy(alpha = 0.85f) else GlassWhite,
+        animationSpec = tween(durationMillis = STANDARD_DURATION),
+        label = "countdown_bg"
+    )
+
+    val textColor by animateColorAsState(
+        targetValue = if (isIqomahTime) TextOnAccent else EmeraldGreen,
+        animationSpec = tween(durationMillis = STANDARD_DURATION),
+        label = "countdown_text"
+    )
+
+    val borderColor by animateColorAsState(
+        targetValue = if (isIqomahTime) GoldAccent else GlassBorder,
+        animationSpec = tween(durationMillis = STANDARD_DURATION),
+        label = "countdown_border"
+    )
+
+    val shape = RoundedCornerShape(
+        topStart = if (isMobile) 16.dp else 100.dp,
+        topEnd = if (isMobile) 16.dp else 100.dp,
+        bottomStart = 0.dp,
+        bottomEnd = 0.dp
+    )
+
     Box(
         modifier = modifier
-            .clip(
-                RoundedCornerShape(
-                    topStart = if (isMobile) 16.dp else 100.dp,
-                    topEnd = if (isMobile) 16.dp else 100.dp,
-                    bottomStart = 0.dp,
-                    bottomEnd = 0.dp
-                )
-            )
-            .background(if (isIqomahTime) Color.Yellow.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.9f))
+            .clip(shape)
+            .background(bgColor, shape)
+            .border(1.dp, borderColor, shape)
             .padding(
                 horizontal = if (isMobile) 16.dp else 32.dp,
                 vertical = if (isMobile) 8.dp else 16.dp
@@ -194,12 +202,28 @@ fun NextPrayerCountdown(
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = displayText,
-                color = if (isIqomahTime) Color.Black else emeraldGreen,
-                fontSize = if (isMobile) 20.sp else 32.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            val textStyle = if (isMobile) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium
+            Box {
+                // Outline/stroke layer
+                Text(
+                    text = displayText,
+                    color = DarkBackground,
+                    style = textStyle.copy(
+                        drawStyle = Stroke(
+                            width = 8f,
+                            join = StrokeJoin.Round
+                        )
+                    ),
+                    fontWeight = FontWeight.Bold,
+                )
+                // Fill layer on top
+                Text(
+                    text = displayText,
+                    color = textColor,
+                    style = textStyle,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
     }
 }
@@ -221,11 +245,9 @@ private fun findCurrentAndNextPrayer(
     prayerTimes: Map<String, LocalTime?>,
     orderedPrayers: List<String>
 ): Pair<String, String> {
-    // Find the current prayer
     var currentPrayer = orderedPrayers.last()
     var foundCurrent = false
 
-    // First check if current time is after the last prayer of the day
     val lastPrayer = orderedPrayers.last()
     val lastPrayerTime = prayerTimes[lastPrayer]
 
@@ -234,7 +256,6 @@ private fun findCurrentAndNextPrayer(
         foundCurrent = true
     }
 
-    // If not found yet, check all prayers in reverse order
     if (!foundCurrent) {
         for (i in orderedPrayers.indices.reversed()) {
             val prayer = orderedPrayers[i]
@@ -248,12 +269,10 @@ private fun findCurrentAndNextPrayer(
         }
     }
 
-    // If still not found, default to the first prayer
     if (!foundCurrent) {
         currentPrayer = orderedPrayers.first()
     }
 
-    // Find the next prayer
     val currentIndex = orderedPrayers.indexOf(currentPrayer)
     val nextIndex = (currentIndex + 1) % orderedPrayers.size
     val nextPrayer = orderedPrayers[nextIndex]
@@ -265,14 +284,12 @@ private fun calculateTimeRemaining(currentTime: LocalTime, targetTime: LocalTime
     var targetTimeSeconds = targetTime.toSecondOfDay()
     val currentTimeSeconds = currentTime.toSecondOfDay()
 
-    // If target time is tomorrow (e.g., current time is after Isya, next is Imsak)
     if (targetTimeSeconds < currentTimeSeconds) {
-        targetTimeSeconds += 24 * 60 * 60 // Add 24 hours in seconds
+        targetTimeSeconds += 24 * 60 * 60
     }
 
     val diffSeconds = targetTimeSeconds - currentTimeSeconds
 
-    // Format as -HH:MM:SS
     val hours = diffSeconds / 3600
     val minutes = (diffSeconds % 3600) / 60
     val seconds = diffSeconds % 60

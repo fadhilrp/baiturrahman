@@ -1,6 +1,7 @@
 package com.example.baiturrahman.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,11 +9,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -20,14 +23,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.baiturrahman.R
+import com.example.baiturrahman.ui.theme.EmeraldGreen
+import com.example.baiturrahman.ui.theme.GlassWhite
+import com.example.baiturrahman.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
-import com.example.baiturrahman.ui.components.SupabaseImage // Assuming SupabaseImage is defined in this package or imported
 
 @Composable
 fun ImageSlider(
@@ -36,21 +41,18 @@ fun ImageSlider(
     onIndexChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val pagerState = rememberPagerState(
         initialPage = currentIndex,
         pageCount = { maxOf(1, images.size) }
     )
     val coroutineScope = rememberCoroutineScope()
 
-    // Sync external index with pager state
     LaunchedEffect(currentIndex) {
         if (pagerState.currentPage != currentIndex && images.isNotEmpty()) {
             pagerState.animateScrollToPage(currentIndex)
         }
     }
 
-    // Sync pager state with external index
     LaunchedEffect(pagerState.currentPage) {
         if (pagerState.currentPage != currentIndex && images.isNotEmpty()) {
             onIndexChange(pagerState.currentPage)
@@ -67,7 +69,6 @@ fun ImageSlider(
                 contentAlignment = Alignment.Center
             ) {
                 if (images.isEmpty()) {
-                    // Default image if no images are available
                     Image(
                         painter = painterResource(id = R.drawable.mosque),
                         contentDescription = "Gambar Masjid Default",
@@ -75,7 +76,6 @@ fun ImageSlider(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Use SupabaseImage for cloud images - no fallback to prevent placeholder appearing for failed loads
                     SupabaseImage(
                         imageUrl = images[page],
                         contentDescription = "Mosque Image ${page + 1}",
@@ -87,29 +87,48 @@ fun ImageSlider(
             }
         }
 
+        // Vignette overlay (top)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.3f),
+                            Color.Transparent,
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.3f)
+                        )
+                    )
+                )
+        )
+
         // Indicators
         if (images.size > 1) {
             Row(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(16.dp)
-                    .background(Color.Black.copy(alpha = 0.3f), CircleShape)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .background(GlassWhite, RoundedCornerShape(16.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 repeat(images.size) { index ->
                     val isSelected = index == pagerState.currentPage
-                    val size by animateFloatAsState(
-                        targetValue = if (isSelected) 10f else 8f,
-                        label = "ukuran indikator"
+                    val width by animateDpAsState(
+                        targetValue = if (isSelected) 16.dp else 6.dp,
+                        animationSpec = tween(durationMillis = STANDARD_DURATION),
+                        label = "indicator_width"
                     )
 
                     Box(
                         modifier = Modifier
-                            .size(size.dp)
+                            .width(width)
+                            .height(6.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isSelected) Color.White else Color.White.copy(alpha = 0.5f)
+                                if (isSelected) EmeraldGreen else TextSecondary.copy(alpha = 0.5f)
                             )
                             .clickable {
                                 coroutineScope.launch {
