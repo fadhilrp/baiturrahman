@@ -7,9 +7,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.data.model.PrayerTimings
+import com.example.baiturrahman.data.remote.SupabaseSyncService
 import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.data.repository.PrayerTimeRepository
 import com.example.baiturrahman.data.repository.ImageRepository
+import com.example.baiturrahman.utils.DevicePreferences
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +23,9 @@ class MosqueDashboardViewModel(
     private val prayerTimeRepository: PrayerTimeRepository,
     private val settingsRepository: MosqueSettingsRepository,
     private val imageRepository: ImageRepository,
-    private val application: Application
+    private val devicePreferences: DevicePreferences,
+    private val application: Application,
+    private val syncService: SupabaseSyncService
 ) : ViewModel() {
 
     companion object {
@@ -83,8 +87,22 @@ class MosqueDashboardViewModel(
         "Asia/Jayapura"
     )
 
-    // Database image IDs (to keep track for deletion)
-    private val imageIdMap = mutableMapOf<String, Int>()
+    // Loading states for UI
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+
+    private val _isUploadingImage = MutableStateFlow(false)
+    val isUploadingImage: StateFlow<Boolean> = _isUploadingImage.asStateFlow()
+
+    private val _isUploadingLogo = MutableStateFlow(false)
+    val isUploadingLogo: StateFlow<Boolean> = _isUploadingLogo.asStateFlow()
+
+    private val _isDeletingImage = MutableStateFlow(false)
+    val isDeletingImage: StateFlow<Boolean> = _isDeletingImage.asStateFlow()
+
+    // Database image IDs — stores both Room ID and Supabase ID
+    private data class ImageIds(val roomId: Int, val supabaseId: String?)
+    private val imageIdMap = mutableMapOf<String, ImageIds>()
     private var isSliderSyncing = false
 
     init {
@@ -136,10 +154,13 @@ class MosqueDashboardViewModel(
 
                 _mosqueImages.value = imageUris
 
-                // Update image ID map
+                // Update image ID map with both Room ID and Supabase ID
                 imageIdMap.clear()
                 completedImages.forEach { image ->
-                    imageIdMap[image.imageUri] = image.id
+                    imageIdMap[image.imageUri] = ImageIds(
+                        roomId = image.id,
+                        supabaseId = image.supabaseId
+                    )
                 }
 
                 // Reset current index if needed, but preserve valid indices
@@ -148,7 +169,6 @@ class MosqueDashboardViewModel(
                     if (currentIndex >= imageUris.size) {
                         _currentImageIndex.value = 0
                     }
-                    // If images list changed but current index is still valid, keep it
                 } else {
                     _currentImageIndex.value = 0
                 }
@@ -203,10 +223,11 @@ class MosqueDashboardViewModel(
         }
     }
 
-    // Save all settings to database
-    fun saveAllSettings() {
-        viewModelScope.launch {
+    // Internal save logic — can be called from coroutines without launching nested ones
+    private suspend fun saveAllSettingsInternal() {
+        syncService.withSyncLock {
             settingsRepository.saveSettings(
+                deviceName = devicePreferences.deviceName,
                 mosqueName = _mosqueName.value,
                 mosqueLocation = _mosqueLocation.value,
                 logoImage = _logoImage.value,
@@ -215,6 +236,18 @@ class MosqueDashboardViewModel(
                 quoteText = _quoteText.value,
                 marqueeText = _marqueeText.value
             )
+        }
+    }
+
+    // Save all settings to database, wrapped in sync lock
+    fun saveAllSettings() {
+        viewModelScope.launch {
+            _isSaving.value = true
+            try {
+                saveAllSettingsInternal()
+            } finally {
+                _isSaving.value = false
+            }
         }
     }
 
@@ -235,63 +268,74 @@ class MosqueDashboardViewModel(
         _marqueeText.value = text
     }
 
-    // Update the logo image function with extensive debugging
+    // Update the logo image — uses storage-only methods (no mosque_images record)
     fun updateLogoImage(uri: String) {
         viewModelScope.launch {
+            _isUploadingLogo.value = true
             try {
                 Log.d(TAG, "=== UPDATING LOGO IMAGE ===")
                 Log.d(TAG, "URI: $uri")
 
-                // Upload to Supabase (displayOrder = 0 for logos, not used in slider)
-                val publicUrl = imageRepository.uploadImage(Uri.parse(uri), "logos", displayOrder = 0)
+                val publicUrl = imageRepository.uploadLogoToStorage(Uri.parse(uri))
                 if (publicUrl != null) {
                     Log.d(TAG, "✅ Logo uploaded successfully: $publicUrl")
 
-                    // Delete old logo if it exists
+                    // Delete old logo from storage if it exists
                     val oldLogoUrl = _logoImage.value
                     if (oldLogoUrl != null && oldLogoUrl != publicUrl) {
                         Log.d(TAG, "🗑️ Deleting old logo: $oldLogoUrl")
-                        imageRepository.deleteImage(oldLogoUrl, null)
+                        imageRepository.deleteLogoFromStorage(oldLogoUrl)
                     }
 
                     _logoImage.value = publicUrl
                     Log.d(TAG, "✅ Logo image updated in ViewModel")
+                    // Auto-save settings after logo upload
+                    saveAllSettingsInternal()
                 } else {
                     Log.e(TAG, "❌ Failed to upload logo image")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error updating logo", e)
+            } finally {
+                _isUploadingLogo.value = false
             }
         }
     }
 
-    // Update the mosque image function with extensive debugging
+    // Add mosque image — stores supabaseId in Room, wrapped in sync lock
     fun addMosqueImage(uri: String) {
         if (_mosqueImages.value.size < 5) {
             viewModelScope.launch {
+                _isUploadingImage.value = true
                 try {
                     Log.d(TAG, "=== ADDING MOSQUE IMAGE ===")
                     Log.d(TAG, "URI: $uri")
+                    Log.d(TAG, "Device: ${devicePreferences.deviceName}")
                     Log.d(TAG, "Current images count: ${_mosqueImages.value.size}")
 
-                    // Get current count for display order
                     val currentCount = _mosqueImages.value.size
 
-                    // Upload to Supabase with displayOrder
-                    val publicUrl = imageRepository.uploadImage(
-                        Uri.parse(uri),
-                        "mosque-images",
-                        displayOrder = currentCount
-                    )
-                    if (publicUrl != null) {
-                        Log.d(TAG, "✅ Mosque image uploaded successfully: $publicUrl")
-                        settingsRepository.addMosqueImage(publicUrl)
-                        Log.d(TAG, "✅ Mosque image added to repository")
-                    } else {
-                        Log.e(TAG, "❌ Failed to upload mosque image")
+                    syncService.withSyncLock {
+                        val result = imageRepository.uploadImage(
+                            Uri.parse(uri),
+                            "mosque-images",
+                            displayOrder = currentCount,
+                            deviceName = devicePreferences.deviceName
+                        )
+                        if (result != null) {
+                            Log.d(TAG, "✅ Mosque image uploaded: ${result.publicUrl} (id: ${result.supabaseId})")
+                            settingsRepository.addMosqueImage(result.publicUrl, result.supabaseId)
+                            Log.d(TAG, "✅ Mosque image added to repository with supabaseId")
+                        } else {
+                            Log.e(TAG, "❌ Failed to upload mosque image")
+                        }
                     }
+                    // Auto-save settings after image upload
+                    saveAllSettingsInternal()
                 } catch (e: Exception) {
                     Log.e(TAG, "❌ Error adding mosque image", e)
+                } finally {
+                    _isUploadingImage.value = false
                 }
             }
         } else {
@@ -299,33 +343,40 @@ class MosqueDashboardViewModel(
         }
     }
 
-    // Update remove function to delete from Supabase with debugging
+    // Remove mosque image — passes supabaseId + deviceName, wrapped in sync lock
     fun removeMosqueImage(index: Int) {
         if (index in _mosqueImages.value.indices) {
             val imageUrl = _mosqueImages.value[index]
-            val imageId = imageIdMap[imageUrl] ?: return
+            val ids = imageIdMap[imageUrl] ?: return
 
             viewModelScope.launch {
+                _isDeletingImage.value = true
                 try {
                     Log.d(TAG, "=== REMOVING MOSQUE IMAGE ===")
                     Log.d(TAG, "Index: $index")
                     Log.d(TAG, "Image URL: $imageUrl")
-                    Log.d(TAG, "Image ID (Room): $imageId")
+                    Log.d(TAG, "Room ID: ${ids.roomId}, Supabase ID: ${ids.supabaseId}")
 
-                    // Note: supabaseId should be extracted from the URL or stored in Room
-                    // For now, delete with URL only and Room ID
-                    // The sync service will handle PostgreSQL cleanup
-                    val deleteSuccess = imageRepository.deleteImage(imageUrl, null)
-                    if (deleteSuccess) {
-                        Log.d(TAG, "✅ Image deleted from Supabase Storage")
-                        // Remove from local database
-                        settingsRepository.removeMosqueImage(imageId)
-                        Log.d(TAG, "✅ Image removed from local database")
-                    } else {
-                        Log.e(TAG, "❌ Failed to delete image from Supabase")
+                    syncService.withSyncLock {
+                        val deleteSuccess = imageRepository.deleteImage(
+                            imageUrl,
+                            ids.supabaseId,
+                            devicePreferences.deviceName
+                        )
+                        if (deleteSuccess) {
+                            Log.d(TAG, "✅ Image deleted from Supabase")
+                            settingsRepository.removeMosqueImage(ids.roomId)
+                            Log.d(TAG, "✅ Image removed from local database")
+                        } else {
+                            Log.e(TAG, "❌ Failed to delete image from Supabase")
+                        }
                     }
+                    // Auto-save settings after image delete
+                    saveAllSettingsInternal()
                 } catch (e: Exception) {
                     Log.e(TAG, "❌ Error removing image", e)
+                } finally {
+                    _isDeletingImage.value = false
                 }
             }
         } else {
@@ -360,6 +411,15 @@ class MosqueDashboardViewModel(
             Log.d(TAG, "🧪 Manual Supabase connection test triggered")
             val success = imageRepository.testConnection()
             Log.d(TAG, if (success) "✅ Connection test passed" else "❌ Connection test failed")
+        }
+    }
+
+    /**
+     * Rename device atomically in remote PostgreSQL, wrapped in sync lock.
+     */
+    suspend fun renameDevice(oldName: String, newName: String): Boolean {
+        return syncService.withSyncLock {
+            settingsRepository.renameDevice(oldName, newName)
         }
     }
 

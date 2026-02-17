@@ -14,6 +14,11 @@ import java.util.UUID
 import kotlin.time.ExperimentalTime
 
 /**
+ * Result of a successful image upload containing both the public URL and the Supabase UUID.
+ */
+data class UploadResult(val publicUrl: String, val supabaseId: String)
+
+/**
  * Repository for handling image uploads to Supabase
  * NEW ARCHITECTURE: Creates PostgreSQL record -> Uploads to Storage -> Updates record with URL
  */
@@ -37,10 +42,11 @@ class ImageRepository(
      * @param uri Local URI of the image
      * @param folder Folder in storage (e.g., "logos" or "mosque-images")
      * @param displayOrder Order for slider (0 if logo)
+     * @param deviceName Device name for device-specific data
      * @return Public URL if successful, null otherwise
      */
     @OptIn(ExperimentalTime::class)
-    suspend fun uploadImage(uri: Uri, folder: String, displayOrder: Int = 0): String? {
+    suspend fun uploadImage(uri: Uri, folder: String, displayOrder: Int = 0, deviceName: String = ""): UploadResult? {
         return withContext(Dispatchers.IO) {
             var imageId: String? = null
 
@@ -78,29 +84,12 @@ class ImageRepository(
 
                 Log.d(TAG, "✅ Image read: ${imageBytes.size} bytes (${imageBytes.size / 1024} KB)")
 
-                // STEP 1: Create PostgreSQL record
+                // STEP 1: Upload to Supabase Storage (idempotent with upsert=true)
                 imageId = UUID.randomUUID().toString()
-                Log.d(TAG, "📝 Step 1: Creating PostgreSQL record (ID: $imageId)")
-
-                val createdRecord = postgresRepository.createImageRecord(
-                    id = imageId,
-                    displayOrder = displayOrder,
-                    fileSize = imageBytes.size.toLong(),
-                    mimeType = mimeType
-                )
-
-                if (createdRecord == null) {
-                    Log.e(TAG, "❌ Failed to create PostgreSQL record")
-                    return@withContext null
-                }
-
-                Log.d(TAG, "✅ PostgreSQL record created with status: ${createdRecord.uploadStatus}")
-
-                // STEP 2: Upload to Supabase Storage
                 val fileName = "$imageId.$fileExtension"
                 val filePath = "$folder/$fileName"
 
-                Log.d(TAG, "⬆️ Step 2: Uploading to Supabase Storage")
+                Log.d(TAG, "⬆️ Step 1: Uploading to Supabase Storage (ID: $imageId)")
                 Log.d(TAG, "File path: $filePath")
 
                 val client = SupabaseClient.client
@@ -110,23 +99,49 @@ class ImageRepository(
 
                 Log.d(TAG, "✅ Upload to Storage completed")
 
-                // STEP 3: Get public URL
+                // STEP 2: Get public URL
                 val publicUrl = client.storage.from(bucketName).publicUrl(filePath)
                 Log.d(TAG, "🔗 Public URL: $publicUrl")
 
-                // STEP 4: Update PostgreSQL with URL
-                Log.d(TAG, "📝 Step 3: Updating PostgreSQL with URL")
+                // STEP 3: Create completed PostgreSQL record atomically via RPC
+                Log.d(TAG, "📝 Step 3: Creating PostgreSQL record via uploadImageAtomic RPC")
 
-                val updateSuccess = postgresRepository.updateImageUrl(imageId, publicUrl)
-                if (!updateSuccess) {
-                    Log.w(TAG, "⚠️ Failed to update PostgreSQL record, but image uploaded")
-                    // Image is uploaded, so we can still return the URL
+                val atomicResult = postgresRepository.uploadImageAtomic(
+                    id = imageId,
+                    deviceName = deviceName,
+                    displayOrder = displayOrder,
+                    fileSize = imageBytes.size.toLong(),
+                    mimeType = mimeType,
+                    imageUri = publicUrl
+                )
+
+                if (atomicResult != null) {
+                    Log.d(TAG, "✅ Atomic upload RPC succeeded: ${atomicResult.id}")
+                } else {
+                    // Fallback: two-step createImageRecord + updateImageUrl
+                    Log.w(TAG, "⚠️ Atomic RPC failed, falling back to two-step flow")
+
+                    val createdRecord = postgresRepository.createImageRecord(
+                        id = imageId,
+                        deviceName = deviceName,
+                        displayOrder = displayOrder,
+                        fileSize = imageBytes.size.toLong(),
+                        mimeType = mimeType
+                    )
+
+                    if (createdRecord != null) {
+                        val updateSuccess = postgresRepository.updateImageUrl(imageId, publicUrl)
+                        if (!updateSuccess) {
+                            Log.w(TAG, "⚠️ Failed to update PostgreSQL record with URL")
+                        }
+                    } else {
+                        Log.w(TAG, "⚠️ Failed to create PostgreSQL record via fallback")
+                    }
                 }
 
-                Log.d(TAG, "✅ PostgreSQL updated with status: completed")
                 Log.d(TAG, "=== UPLOAD FLOW COMPLETED SUCCESSFULLY ===")
 
-                return@withContext publicUrl
+                return@withContext UploadResult(publicUrl = publicUrl, supabaseId = imageId)
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ ERROR DURING UPLOAD", e)
@@ -147,18 +162,52 @@ class ImageRepository(
     }
 
     /**
-     * Delete image from both Storage and PostgreSQL
+     * Delete image from both PostgreSQL (source of truth) and Storage.
+     * Remote-first: deletes from PostgreSQL first, then Storage.
+     * Uses deleteImageAndReorder RPC for atomic delete + reorder when deviceName is available.
      */
-    suspend fun deleteImage(imageUrl: String, supabaseId: String? = null): Boolean {
+    suspend fun deleteImage(imageUrl: String, supabaseId: String? = null, deviceName: String = ""): Boolean {
         return withContext(Dispatchers.IO) {
             try {
                 Log.d(TAG, "=== DELETING IMAGE ===")
                 Log.d(TAG, "URL: $imageUrl")
                 Log.d(TAG, "Supabase ID: $supabaseId")
+                Log.d(TAG, "Device: $deviceName")
 
                 var success = true
 
-                // Delete from Storage
+                // STEP 1: Delete from PostgreSQL first (source of truth)
+                val postgresId = supabaseId ?: extractIdFromUrl(imageUrl)
+                if (postgresId != null) {
+                    if (deviceName.isNotEmpty()) {
+                        // Try atomic delete + reorder RPC
+                        Log.d(TAG, "🗑️ Deleting from PostgreSQL via deleteImageAndReorder RPC")
+                        val remaining = postgresRepository.deleteImageAndReorder(postgresId, deviceName)
+                        if (remaining != null) {
+                            Log.d(TAG, "✅ Atomic delete + reorder succeeded: ${remaining.size} images remaining")
+                        } else {
+                            // Fallback to simple delete
+                            Log.w(TAG, "⚠️ RPC failed, falling back to simple delete")
+                            val deleted = postgresRepository.deleteImage(postgresId)
+                            if (!deleted) {
+                                Log.w(TAG, "⚠️ Failed to delete from PostgreSQL")
+                                success = false
+                            }
+                        }
+                    } else {
+                        // No deviceName, use simple delete
+                        Log.d(TAG, "🗑️ Deleting from PostgreSQL: $postgresId")
+                        val deleted = postgresRepository.deleteImage(postgresId)
+                        if (!deleted) {
+                            Log.w(TAG, "⚠️ Failed to delete from PostgreSQL")
+                            success = false
+                        }
+                    }
+                } else {
+                    Log.w(TAG, "⚠️ Could not determine PostgreSQL ID for deletion")
+                }
+
+                // STEP 2: Delete from Storage (orphaned file is harmless)
                 val filePath = extractFilePathFromUrl(imageUrl)
                 if (filePath != null) {
                     try {
@@ -167,28 +216,10 @@ class ImageRepository(
                         client.storage.from(bucketName).delete(listOf(filePath))
                         Log.d(TAG, "✅ Deleted from Storage")
                     } catch (e: Exception) {
-                        Log.e(TAG, "❌ Failed to delete from Storage", e)
-                        success = false
+                        Log.w(TAG, "⚠️ Failed to delete from Storage (orphaned file is harmless)", e)
                     }
                 } else {
                     Log.w(TAG, "⚠️ Could not extract file path from URL")
-                }
-
-                // Delete from PostgreSQL
-                if (supabaseId != null) {
-                    try {
-                        Log.d(TAG, "🗑️ Deleting from PostgreSQL: $supabaseId")
-                        val deleted = postgresRepository.deleteImage(supabaseId)
-                        if (deleted) {
-                            Log.d(TAG, "✅ Deleted from PostgreSQL")
-                        } else {
-                            Log.w(TAG, "⚠️ Failed to delete from PostgreSQL")
-                            success = false
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "❌ Error deleting from PostgreSQL", e)
-                        success = false
-                    }
                 }
 
                 Log.d(TAG, "=== DELETE COMPLETED (success: $success) ===")
@@ -198,6 +229,108 @@ class ImageRepository(
                 Log.e(TAG, "❌ ERROR DURING DELETE", e)
                 return@withContext false
             }
+        }
+    }
+
+    /**
+     * Upload a logo to Supabase Storage only — no PostgreSQL record created.
+     * Logos are stored in the "logos/" folder.
+     * @param uri Local URI of the logo image
+     * @return Public URL if successful, null otherwise
+     */
+    @OptIn(ExperimentalTime::class)
+    suspend fun uploadLogoToStorage(uri: Uri): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "=== UPLOADING LOGO TO STORAGE ONLY ===")
+                Log.d(TAG, "URI: $uri")
+
+                if (uri == Uri.EMPTY) {
+                    Log.e(TAG, "❌ URI is empty!")
+                    return@withContext null
+                }
+
+                val fileExtension = getFileExtension(uri)
+                val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+                if (inputStream == null) {
+                    Log.e(TAG, "❌ Failed to open input stream")
+                    return@withContext null
+                }
+
+                val imageBytes = inputStream.readBytes()
+                inputStream.close()
+
+                if (imageBytes.isEmpty()) {
+                    Log.e(TAG, "❌ Image bytes are empty!")
+                    return@withContext null
+                }
+
+                val logoId = UUID.randomUUID().toString()
+                val fileName = "$logoId.$fileExtension"
+                val filePath = "logos/$fileName"
+
+                Log.d(TAG, "⬆️ Uploading logo to Storage: $filePath")
+
+                val client = SupabaseClient.client
+                client.storage.from(bucketName).upload(filePath, imageBytes) {
+                    upsert = true
+                }
+
+                val publicUrl = client.storage.from(bucketName).publicUrl(filePath)
+                Log.d(TAG, "✅ Logo uploaded (storage only): $publicUrl")
+                return@withContext publicUrl
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error uploading logo to storage", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Delete a logo from Supabase Storage only — no PostgreSQL record involved.
+     * @param imageUrl Public URL of the logo to delete
+     * @return true if successful
+     */
+    suspend fun deleteLogoFromStorage(imageUrl: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "=== DELETING LOGO FROM STORAGE ONLY ===")
+                Log.d(TAG, "URL: $imageUrl")
+
+                val filePath = extractFilePathFromUrl(imageUrl)
+                if (filePath == null) {
+                    Log.e(TAG, "❌ Could not extract file path from URL: $imageUrl")
+                    return@withContext false
+                }
+
+                val client = SupabaseClient.client
+                client.storage.from(bucketName).delete(listOf(filePath))
+                Log.d(TAG, "✅ Logo deleted from storage: $filePath")
+                return@withContext true
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error deleting logo from storage", e)
+                return@withContext false
+            }
+        }
+    }
+
+    /**
+     * Extract UUID from Supabase Storage URL
+     * Format: https://xxx.supabase.co/storage/v1/object/public/bucket/folder/uuid.ext
+     */
+    private fun extractIdFromUrl(url: String): String? {
+        return try {
+            val parts = url.split("/")
+            val filename = parts.lastOrNull() ?: return null
+            // Remove extension to get UUID
+            val id = filename.substringBeforeLast(".")
+            Log.d(TAG, "Extracted PostgreSQL ID from URL: $id")
+            id
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting ID from URL: $url", e)
+            null
         }
     }
 
@@ -305,44 +438,6 @@ class ImageRepository(
         }
     }
 
-
-    /**
-     * Delete an image from Supabase Storage with debugging
-     */
-    suspend fun deleteImage(imageUrl: String): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                Log.d(TAG, "=== STARTING IMAGE DELETE ===")
-                Log.d(TAG, "Image URL: $imageUrl")
-
-                // Extract file path from URL
-                val filePath = extractFilePathFromUrl(imageUrl)
-                if (filePath == null) {
-                    Log.e(TAG, "❌ Could not extract file path from URL: $imageUrl")
-                    return@withContext false
-                }
-
-                Log.d(TAG, "Extracted file path: $filePath")
-
-                // Delete from Supabase Storage
-                Log.d(TAG, "🗑️ Deleting file: $filePath")
-                val client = SupabaseClient.client
-                val deleteResponse = client.storage.from(bucketName).delete(listOf(filePath))
-
-                Log.d(TAG, "✅ Delete completed!")
-                Log.d(TAG, "🗑️ Delete response: $deleteResponse")
-                Log.d(TAG, "=== DELETE COMPLETED SUCCESSFULLY ===")
-                return@withContext true
-
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ ERROR DURING DELETE", e)
-                Log.e(TAG, "Error type: ${e.javaClass.simpleName}")
-                Log.e(TAG, "Error message: ${e.message}")
-                e.printStackTrace()
-                return@withContext false
-            }
-        }
-    }
 
     /**
      * Download an image and cache it locally (with debugging)

@@ -45,6 +45,7 @@ androidx-activity-compose = { group = "androidx.activity", name = "activity-comp
 auth-kt = { module = "io.github.jan-tennert.supabase:auth-kt", version.ref = "supabaseKt" }
 bom = { module = "io.github.jan-tennert.supabase:bom", version.ref = "supabaseKt" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilCompose" }
+coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coilCompose" }
 converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
 functions-kt = { module = "io.github.jan-tennert.supabase:functions-kt", version.ref = "supabaseKt" }
 insert-koin-koin-android = { module = "io.insert-koin:koin-android" }

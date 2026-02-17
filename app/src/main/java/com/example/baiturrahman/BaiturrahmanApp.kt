@@ -5,6 +5,7 @@ import android.util.Log
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.util.DebugLogger
 import com.example.baiturrahman.data.remote.SupabaseClient
 import com.example.baiturrahman.data.remote.SupabaseSyncService
@@ -78,6 +79,9 @@ class BaiturrahmanApp : Application(), SingletonImageLoader.Factory {
     // Coil 3 SingletonImageLoader.Factory implementation
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         return ImageLoader.Builder(context)
+            .components {
+                add(KtorNetworkFetcherFactory())
+            }
             .logger(DebugLogger())  // Enable Coil debug logging
             .build()
     }

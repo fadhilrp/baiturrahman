@@ -12,6 +12,9 @@ interface MosqueImageDao {
     @Query("SELECT * FROM mosque_images ORDER BY displayOrder ASC")
     fun getAllImages(): Flow<List<MosqueImage>>
 
+    @Query("SELECT * FROM mosque_images ORDER BY displayOrder ASC")
+    suspend fun getAllImagesSnapshot(): List<MosqueImage>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertImage(image: MosqueImage)
 

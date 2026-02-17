@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.ktor3)
 
     // Room dependencies
     implementation(libs.androidx.room.runtime)

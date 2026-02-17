@@ -4,6 +4,9 @@ import android.util.Log
 import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.data.repository.SupabasePostgresRepository
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * Helper class to migrate existing data from local Room database to Supabase PostgreSQL
@@ -11,7 +14,8 @@ import kotlinx.coroutines.flow.first
  */
 class MigrationHelper(
     private val localRepository: MosqueSettingsRepository,
-    private val postgresRepository: SupabasePostgresRepository
+    private val postgresRepository: SupabasePostgresRepository,
+    private val devicePreferences: DevicePreferences
 ) {
     companion object {
         private const val TAG = "MigrationHelper"
@@ -74,6 +78,7 @@ class MigrationHelper(
 
             // Push to PostgreSQL
             val request = com.example.baiturrahman.data.model.UpdateMosqueSettingsRequest(
+                deviceName = devicePreferences.deviceName,
                 mosqueName = localSettings.mosqueName,
                 mosqueLocation = localSettings.mosqueLocation,
                 logoImage = localSettings.logoImage,
@@ -100,8 +105,8 @@ class MigrationHelper(
     }
 
     /**
-     * Migrate images from Room to PostgreSQL
-     * Creates PostgreSQL records for existing images that are already in Supabase Storage
+     * Migrate images from Room to PostgreSQL using batch upsert RPC.
+     * Inherently idempotent — safe to run multiple times.
      */
     private suspend fun migrateImages(result: MigrationResult) {
         Log.d(TAG, "🔄 Migrating images...")
@@ -115,67 +120,94 @@ class MigrationHelper(
                 return
             }
 
-            Log.d(TAG, "Found ${localImages.size} local images to migrate")
+            val deviceName = devicePreferences.deviceName
+            Log.d(TAG, "Found ${localImages.size} local images to migrate for device: $deviceName")
 
-            // First, check if images already exist in PostgreSQL
-            val existingRemoteImages = postgresRepository.getCompletedImages()
-            val existingUrls = existingRemoteImages.mapNotNull { it.imageUri }.toSet()
+            // Build JSON array for batch upsert
+            val imagesJsonArray = buildJsonArray {
+                for (localImage in localImages) {
+                    val imageId = extractIdFromUrl(localImage.imageUri)
+                        ?: java.util.UUID.randomUUID().toString()
 
-            Log.d(TAG, "Found ${existingRemoteImages.size} images already in PostgreSQL")
-
-            var migratedCount = 0
-            var skippedCount = 0
-
-            for (localImage in localImages) {
-                try {
-                    // Skip if already in PostgreSQL
-                    if (localImage.imageUri in existingUrls) {
-                        Log.d(TAG, "⏭️ Skipping image (already in PostgreSQL): ${localImage.imageUri}")
-                        skippedCount++
-                        continue
-                    }
-
-                    Log.d(TAG, "Creating PostgreSQL record for: ${localImage.imageUri}")
-
-                    // Extract UUID from URL (assuming format: .../folder/uuid.ext)
-                    val imageId = extractIdFromUrl(localImage.imageUri) ?: java.util.UUID.randomUUID().toString()
-
-                    // Create record in PostgreSQL with "completed" status since image already exists in Storage
-                    val createdRecord = postgresRepository.createImageRecord(
-                        id = imageId,
-                        displayOrder = localImage.displayOrder,
-                        fileSize = localImage.fileSize,
-                        mimeType = localImage.mimeType
-                    )
-
-                    if (createdRecord != null) {
-                        // Update with URL immediately since image already exists
-                        val updated = postgresRepository.updateImageUrl(imageId, localImage.imageUri)
-                        if (updated) {
-                            Log.d(TAG, "✅ Image migrated: ${localImage.displayOrder}")
-                            migratedCount++
-                        } else {
-                            Log.e(TAG, "❌ Failed to update image URL in PostgreSQL")
-                            result.errors.add("Failed to update image ${localImage.id}")
-                        }
-                    } else {
-                        Log.e(TAG, "❌ Failed to create image record in PostgreSQL")
-                        result.errors.add("Failed to create record for image ${localImage.id}")
-                    }
-
-                } catch (e: Exception) {
-                    Log.e(TAG, "❌ Error migrating image ${localImage.id}", e)
-                    result.errors.add("Image ${localImage.id} error: ${e.message}")
+                    add(buildJsonObject {
+                        put("id", imageId)
+                        put("device_name", deviceName)
+                        put("display_order", localImage.displayOrder)
+                        put("file_size", localImage.fileSize)
+                        put("mime_type", localImage.mimeType)
+                        put("image_uri", localImage.imageUri)
+                        put("upload_status", "completed")
+                    })
                 }
             }
 
-            Log.d(TAG, "✅ Images migration completed: $migratedCount migrated, $skippedCount skipped")
-            result.imagesMigrated = migratedCount
+            // Try batch upsert RPC first
+            val upsertCount = postgresRepository.batchUpsertImages(imagesJsonArray.toString())
+
+            if (upsertCount >= 0) {
+                Log.d(TAG, "✅ Batch upsert succeeded: $upsertCount images migrated")
+                result.imagesMigrated = upsertCount
+            } else {
+                // Fallback: per-image migration
+                Log.w(TAG, "⚠️ Batch upsert RPC failed, falling back to per-image migration")
+                migrateImagesFallback(localImages, deviceName, result)
+            }
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error migrating images", e)
             result.errors.add("Images migration error: ${e.message}")
         }
+    }
+
+    /**
+     * Fallback per-image migration when batch RPC is unavailable
+     */
+    private suspend fun migrateImagesFallback(
+        localImages: List<com.example.baiturrahman.data.local.entity.MosqueImage>,
+        deviceName: String,
+        result: MigrationResult
+    ) {
+        val existingRemoteImages = postgresRepository.getCompletedImages(deviceName)
+        val existingUrls = existingRemoteImages.mapNotNull { it.imageUri }.toSet()
+
+        var migratedCount = 0
+        var skippedCount = 0
+
+        for (localImage in localImages) {
+            try {
+                if (localImage.imageUri in existingUrls) {
+                    skippedCount++
+                    continue
+                }
+
+                val imageId = extractIdFromUrl(localImage.imageUri)
+                    ?: java.util.UUID.randomUUID().toString()
+
+                val createdRecord = postgresRepository.createImageRecord(
+                    id = imageId,
+                    deviceName = deviceName,
+                    displayOrder = localImage.displayOrder,
+                    fileSize = localImage.fileSize,
+                    mimeType = localImage.mimeType
+                )
+
+                if (createdRecord != null) {
+                    val updated = postgresRepository.updateImageUrl(imageId, localImage.imageUri)
+                    if (updated) {
+                        migratedCount++
+                    } else {
+                        result.errors.add("Failed to update image ${localImage.id}")
+                    }
+                } else {
+                    result.errors.add("Failed to create record for image ${localImage.id}")
+                }
+            } catch (e: Exception) {
+                result.errors.add("Image ${localImage.id} error: ${e.message}")
+            }
+        }
+
+        Log.d(TAG, "✅ Fallback migration: $migratedCount migrated, $skippedCount skipped")
+        result.imagesMigrated = migratedCount
     }
 
     /**

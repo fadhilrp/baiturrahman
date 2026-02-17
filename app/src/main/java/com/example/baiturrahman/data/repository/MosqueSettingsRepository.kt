@@ -1,15 +1,17 @@
 package com.example.baiturrahman.data.repository
 
 import android.util.Log
+import androidx.room.withTransaction
+import com.example.baiturrahman.data.local.AppDatabase
 import com.example.baiturrahman.data.local.dao.MosqueImageDao
 import com.example.baiturrahman.data.local.dao.MosqueSettingsDao
 import com.example.baiturrahman.data.local.entity.MosqueImage
 import com.example.baiturrahman.data.local.entity.MosqueSettings
 import com.example.baiturrahman.data.model.UpdateMosqueSettingsRequest
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.firstOrNull
 
 class MosqueSettingsRepository(
+    private val database: AppDatabase,
     private val mosqueSettingsDao: MosqueSettingsDao,
     private val mosqueImageDao: MosqueImageDao,
     private val postgresRepository: SupabasePostgresRepository
@@ -23,9 +25,11 @@ class MosqueSettingsRepository(
 
     /**
      * Save settings to local Room database AND push to Supabase PostgreSQL
+     * @param deviceName Device name for device-specific settings
      * @param pushToRemote If true, also pushes changes to PostgreSQL. Set to false when syncing from remote to avoid loops.
      */
     suspend fun saveSettings(
+        deviceName: String,
         mosqueName: String,
         mosqueLocation: String,
         logoImage: String?,
@@ -46,12 +50,13 @@ class MosqueSettingsRepository(
             marqueeText = marqueeText
         )
         mosqueSettingsDao.insertSettings(settings)
-        Log.d(TAG, "Settings saved to local database")
+        Log.d(TAG, "Settings saved to local database for device: $deviceName")
 
         // Push to Supabase PostgreSQL (only if pushToRemote is true)
         if (pushToRemote) {
             try {
                 val request = UpdateMosqueSettingsRequest(
+                    deviceName = deviceName,
                     mosqueName = mosqueName,
                     mosqueLocation = mosqueLocation,
                     logoImage = logoImage,
@@ -63,9 +68,9 @@ class MosqueSettingsRepository(
 
                 val success = postgresRepository.updateSettings(request)
                 if (success) {
-                    Log.d(TAG, "✅ Settings pushed to PostgreSQL")
+                    Log.d(TAG, "✅ Settings pushed to PostgreSQL for device: $deviceName")
                 } else {
-                    Log.w(TAG, "⚠️ Failed to push settings to PostgreSQL")
+                    Log.w(TAG, "⚠️ Failed to push settings to PostgreSQL for device: $deviceName")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error pushing settings to PostgreSQL", e)
@@ -79,29 +84,40 @@ class MosqueSettingsRepository(
     // Images
     val mosqueImages: Flow<List<MosqueImage>> = mosqueImageDao.getAllImages()
 
-    suspend fun addMosqueImage(imageUri: String) {
+    suspend fun addMosqueImage(imageUri: String, supabaseId: String? = null) {
         val currentCount = mosqueImageDao.getImageCount()
         if (currentCount < 5) { // Maximum 5 images
             val image = MosqueImage(
                 imageUri = imageUri,
-                displayOrder = currentCount
+                displayOrder = currentCount,
+                supabaseId = supabaseId
             )
             mosqueImageDao.insertImage(image)
         }
     }
 
+    /**
+     * Rename device atomically in remote PostgreSQL (both tables).
+     */
+    suspend fun renameDevice(oldName: String, newName: String): Boolean {
+        return postgresRepository.renameDevice(oldName, newName)
+    }
+
     suspend fun removeMosqueImage(imageId: Int) {
-        mosqueImageDao.deleteImage(imageId)
-        // Reorder remaining images
-        val images = mosqueImageDao.getAllImages().firstOrNull() ?: return
-        images.forEachIndexed { index, image ->
-            mosqueImageDao.updateImageOrder(image.id, index)
+        database.withTransaction {
+            mosqueImageDao.deleteImage(imageId)
+            val images = mosqueImageDao.getAllImagesSnapshot()
+            images.forEachIndexed { index, image ->
+                mosqueImageDao.updateImageOrder(image.id, index)
+            }
         }
     }
 
     suspend fun clearAllData() {
-        mosqueSettingsDao.deleteAllSettings()
-        mosqueImageDao.deleteAllImages()
+        database.withTransaction {
+            mosqueSettingsDao.deleteAllSettings()
+            mosqueImageDao.deleteAllImages()
+        }
     }
 
     suspend fun addMosqueImageWithId(

@@ -17,7 +17,7 @@ import com.example.baiturrahman.ui.theme.emeraldGreen
 
 @Composable
 fun QuoteBox(
-    quote: String = "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec vel egestas dolor, nec dignissim metus.\""
+    quote: String = "\"Lorem ipsum dolor sit amet.\""
 ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp

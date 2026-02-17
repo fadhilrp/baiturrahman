@@ -1,6 +1,8 @@
 package com.example.baiturrahman.data.remote
 
 import android.util.Log
+import androidx.room.withTransaction
+import com.example.baiturrahman.data.local.AppDatabase
 import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.data.repository.SupabasePostgresRepository
 import com.example.baiturrahman.utils.DevicePreferences
@@ -11,12 +13,18 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Service to sync data between Supabase PostgreSQL and local Room database
- * Uses polling mechanism to check for updates
+ * Uses polling mechanism to check for updates.
+ *
+ * Design: Master device = push only (never pulls from remote).
+ *         Non-master devices = pull only.
  */
 class SupabaseSyncService(
+    private val database: AppDatabase,
     private val postgresRepository: SupabasePostgresRepository,
     private val localRepository: MosqueSettingsRepository,
     private val devicePreferences: DevicePreferences,
@@ -32,6 +40,15 @@ class SupabaseSyncService(
     private var syncIntervalMs: Long = 10_000L // Poll every 10 seconds
     private var isRunning = false
 
+    // Mutex to prevent sync from racing with user operations
+    private val syncMutex = Mutex()
+
+    /**
+     * Execute a block while holding the sync lock.
+     * Use this to wrap user mutations (upload, delete, save) so sync doesn't race.
+     */
+    suspend fun <T> withSyncLock(block: suspend () -> T): T = syncMutex.withLock { block() }
+
     /**
      * Start the sync service
      * Begins polling PostgreSQL for changes
@@ -45,6 +62,7 @@ class SupabaseSyncService(
         Log.d(TAG, "=== STARTING SUPABASE SYNC SERVICE ===")
         Log.d(TAG, "Sync interval: ${syncIntervalMs / 1000}s")
         Log.d(TAG, "Device name: ${devicePreferences.deviceName}")
+        Log.d(TAG, "Master device: ${devicePreferences.isMasterDevice}")
 
         isRunning = true
 
@@ -73,75 +91,62 @@ class SupabaseSyncService(
     }
 
     /**
-     * Poll PostgreSQL for image changes and sync to Room
+     * Poll PostgreSQL for image changes and sync to Room.
+     * Master device skips pulling from remote (push only).
+     * Uses atomic snapshot-replace: if remote differs from local,
+     * replaces all local images in a single Room transaction.
      */
     private suspend fun syncImages() {
         Log.d(TAG, "Started images sync loop")
+        val mosqueImageDao = database.mosqueImageDao()
 
         while (coroutineScope.isActive && isRunning) {
+            // Master device = push only, skip pulling from remote
+            if (devicePreferences.isMasterDevice) {
+                delay(syncIntervalMs)
+                continue
+            }
+
             try {
-                // Fetch images from PostgreSQL (only completed ones)
-                val remoteImages = postgresRepository.getCompletedImages()
+                syncMutex.withLock {
+                    // Read deviceName fresh each iteration
+                    val deviceName = devicePreferences.deviceName
 
-                // Get local images from Room
-                val localImages = localRepository.mosqueImages.first()
+                    // Fetch images from PostgreSQL (only completed ones for this device)
+                    val remoteImages = postgresRepository.getCompletedImages(deviceName)
 
-                // Filter out incomplete uploads (images with null URI)
-                val completedRemoteImages = remoteImages.filter { it.imageUri != null }
+                    // Filter out incomplete uploads (images with null URI)
+                    val completedRemoteImages = remoteImages.filter { it.imageUri != null }
 
-                // Compare and sync
-                val remoteUris = completedRemoteImages.mapNotNull { it.imageUri }.toSet()
-                val localUris = localImages.map { it.imageUri }.toSet()
+                    // Get local images from Room
+                    val localImages = localRepository.mosqueImages.first()
 
-                // Find images to add (in remote but not in local)
-                val imagesToAdd = completedRemoteImages.filter { it.imageUri !in localUris }
+                    // Compare URIs
+                    val remoteUris = completedRemoteImages.mapNotNull { it.imageUri }.toSet()
+                    val localUris = localImages.map { it.imageUri }.toSet()
 
-                // Find images to remove (in local but not in remote)
-                val imagesToRemove = localImages.filter { it.imageUri !in remoteUris }
+                    if (remoteUris != localUris) {
+                        Log.d(TAG, "🔄 Images changed — performing atomic snapshot-replace")
+                        Log.d(TAG, "   Remote: ${completedRemoteImages.size}, Local: ${localImages.size}")
 
-                if (imagesToAdd.isNotEmpty() || imagesToRemove.isNotEmpty()) {
-                    Log.d(TAG, "🔄 Images changed - Add: ${imagesToAdd.size}, Remove: ${imagesToRemove.size}")
-                    Log.d(TAG, "   Remote images: ${remoteImages.size} total, ${completedRemoteImages.size} completed")
-                    Log.d(TAG, "   Local images: ${localImages.size}")
-
-                    // Remove deleted images
-                    for (image in imagesToRemove) {
-                        val urlPreview = image.imageUri.let {
-                            if (it.length > 60) it.take(40) + "..." + it.takeLast(15) else it
+                        // Atomic snapshot-replace in a single Room transaction
+                        database.withTransaction {
+                            mosqueImageDao.deleteAllImages()
+                            completedRemoteImages.forEach { remote ->
+                                localRepository.addMosqueImageWithId(
+                                    id = 0, // Let Room auto-generate
+                                    imageUri = remote.imageUri!!,
+                                    displayOrder = remote.displayOrder,
+                                    supabaseId = remote.id
+                                )
+                            }
                         }
-                        Log.d(TAG, "🗑️ Removing image: ${image.id}")
-                        Log.d(TAG, "   URL: $urlPreview")
-                        localRepository.removeMosqueImage(image.id)
+
+                        Log.d(TAG, "✅ Images synced atomically (${completedRemoteImages.size} images)")
+                    } else {
+                        Log.v(TAG, "No image changes detected (${remoteImages.size} remote, ${localImages.size} local)")
                     }
-
-                    // Add new images (all have non-null URIs due to filtering)
-                    for (remoteImage in imagesToAdd) {
-                        val url = remoteImage.imageUri!!
-                        val urlPreview = if (url.length > 60) {
-                            url.take(40) + "..." + url.takeLast(15)
-                        } else {
-                            url
-                        }
-                        Log.d(TAG, "➕ Adding image: order=${remoteImage.displayOrder}, id=${remoteImage.id}")
-                        Log.d(TAG, "   URL: $urlPreview")
-                        Log.d(TAG, "   Size: ${remoteImage.fileSize / 1024} KB")
-                        localRepository.addMosqueImageWithId(
-                            id = 0, // Let Room auto-generate
-                            imageUri = url,
-                            displayOrder = remoteImage.displayOrder,
-                            supabaseId = remoteImage.id // Store PostgreSQL UUID for deletion
-                        )
-                    }
-
-                    Log.d(TAG, "✅ Images synced successfully")
-
-                    // Log final state
-                    val finalLocalImages = localRepository.mosqueImages.first()
-                    Log.d(TAG, "   Final local count: ${finalLocalImages.size}")
-                } else {
-                    Log.v(TAG, "No image changes detected (${remoteImages.size} remote, ${localImages.size} local)")
                 }
-
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error syncing images", e)
             }
@@ -154,52 +159,64 @@ class SupabaseSyncService(
     }
 
     /**
-     * Poll PostgreSQL for settings changes and sync to Room
+     * Poll PostgreSQL for settings changes and sync to Room.
+     * Master device skips pulling from remote (push only).
      */
     private suspend fun syncSettings() {
         Log.d(TAG, "Started settings sync loop")
 
         while (coroutineScope.isActive && isRunning) {
+            // Master device = push only, skip pulling from remote
+            if (devicePreferences.isMasterDevice) {
+                delay(syncIntervalMs)
+                continue
+            }
+
             try {
-                // Fetch settings from PostgreSQL
-                val remoteSettings = postgresRepository.getSettings()
+                syncMutex.withLock {
+                    // Read deviceName fresh each iteration
+                    val deviceName = devicePreferences.deviceName
 
-                if (remoteSettings != null) {
-                    // Get local settings
-                    val localSettings = localRepository.mosqueSettings.first()
+                    // Fetch settings from PostgreSQL for this device
+                    val remoteSettings = postgresRepository.getSettings(deviceName)
 
-                    // Check if settings are different
-                    val isDifferent = localSettings == null ||
-                        localSettings.mosqueName != remoteSettings.mosqueName ||
-                        localSettings.mosqueLocation != remoteSettings.mosqueLocation ||
-                        localSettings.logoImage != remoteSettings.logoImage ||
-                        localSettings.prayerAddress != remoteSettings.prayerAddress ||
-                        localSettings.prayerTimezone != remoteSettings.prayerTimezone ||
-                        localSettings.quoteText != remoteSettings.quoteText ||
-                        localSettings.marqueeText != remoteSettings.marqueeText
+                    if (remoteSettings != null) {
+                        // Get local settings
+                        val localSettings = localRepository.mosqueSettings.first()
 
-                    if (isDifferent) {
-                        Log.d(TAG, "🔄 Settings changed, updating local database")
+                        // Check if settings are different
+                        val isDifferent = localSettings == null ||
+                            localSettings.mosqueName != remoteSettings.mosqueName ||
+                            localSettings.mosqueLocation != remoteSettings.mosqueLocation ||
+                            localSettings.logoImage != remoteSettings.logoImage ||
+                            localSettings.prayerAddress != remoteSettings.prayerAddress ||
+                            localSettings.prayerTimezone != remoteSettings.prayerTimezone ||
+                            localSettings.quoteText != remoteSettings.quoteText ||
+                            localSettings.marqueeText != remoteSettings.marqueeText
 
-                        localRepository.saveSettings(
-                            mosqueName = remoteSettings.mosqueName,
-                            mosqueLocation = remoteSettings.mosqueLocation,
-                            logoImage = remoteSettings.logoImage,
-                            prayerAddress = remoteSettings.prayerAddress,
-                            prayerTimezone = remoteSettings.prayerTimezone,
-                            quoteText = remoteSettings.quoteText,
-                            marqueeText = remoteSettings.marqueeText,
-                            pushToRemote = false  // Prevent infinite loop - already from remote
-                        )
+                        if (isDifferent) {
+                            Log.d(TAG, "🔄 Settings changed for device $deviceName, updating local database")
 
-                        Log.d(TAG, "✅ Settings synced successfully")
+                            localRepository.saveSettings(
+                                deviceName = deviceName,
+                                mosqueName = remoteSettings.mosqueName,
+                                mosqueLocation = remoteSettings.mosqueLocation,
+                                logoImage = remoteSettings.logoImage,
+                                prayerAddress = remoteSettings.prayerAddress,
+                                prayerTimezone = remoteSettings.prayerTimezone,
+                                quoteText = remoteSettings.quoteText,
+                                marqueeText = remoteSettings.marqueeText,
+                                pushToRemote = false  // Prevent infinite loop - already from remote
+                            )
+
+                            Log.d(TAG, "✅ Settings synced successfully for device: $deviceName")
+                        } else {
+                            Log.v(TAG, "No settings changes detected for device: $deviceName")
+                        }
                     } else {
-                        Log.v(TAG, "No settings changes detected")
+                        Log.w(TAG, "⚠️ No settings found in PostgreSQL for device: ${devicePreferences.deviceName}")
                     }
-                } else {
-                    Log.w(TAG, "⚠️ No settings found in PostgreSQL")
                 }
-
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error syncing settings", e)
             }
@@ -212,33 +229,56 @@ class SupabaseSyncService(
     }
 
     /**
-     * Force immediate sync (for manual refresh)
+     * Force immediate sync (for manual refresh).
+     * Syncs both settings AND images atomically with the sync lock.
      */
     suspend fun forceSyncNow() {
         Log.d(TAG, "🔄 Force sync triggered")
-        try {
-            // Sync images
-            val remoteImages = postgresRepository.getCompletedImages()
-            Log.d(TAG, "Fetched ${remoteImages.size} images from PostgreSQL")
 
-            // Sync settings
-            val remoteSettings = postgresRepository.getSettings()
-            if (remoteSettings != null) {
-                localRepository.saveSettings(
-                    mosqueName = remoteSettings.mosqueName,
-                    mosqueLocation = remoteSettings.mosqueLocation,
-                    logoImage = remoteSettings.logoImage,
-                    prayerAddress = remoteSettings.prayerAddress,
-                    prayerTimezone = remoteSettings.prayerTimezone,
-                    quoteText = remoteSettings.quoteText,
-                    marqueeText = remoteSettings.marqueeText,
-                    pushToRemote = false  // Prevent infinite loop - already from remote
-                )
+        syncMutex.withLock {
+            val deviceName = devicePreferences.deviceName
+            Log.d(TAG, "Force sync for device: $deviceName")
+
+            try {
+                // Sync settings
+                val remoteSettings = postgresRepository.getSettings(deviceName)
+                if (remoteSettings != null) {
+                    localRepository.saveSettings(
+                        deviceName = deviceName,
+                        mosqueName = remoteSettings.mosqueName,
+                        mosqueLocation = remoteSettings.mosqueLocation,
+                        logoImage = remoteSettings.logoImage,
+                        prayerAddress = remoteSettings.prayerAddress,
+                        prayerTimezone = remoteSettings.prayerTimezone,
+                        quoteText = remoteSettings.quoteText,
+                        marqueeText = remoteSettings.marqueeText,
+                        pushToRemote = false
+                    )
+                    Log.d(TAG, "✅ Settings force-synced")
+                }
+
+                // Sync images — atomic snapshot-replace
+                val remoteImages = postgresRepository.getCompletedImages(deviceName)
+                val completedRemoteImages = remoteImages.filter { it.imageUri != null }
+                val mosqueImageDao = database.mosqueImageDao()
+
+                database.withTransaction {
+                    mosqueImageDao.deleteAllImages()
+                    completedRemoteImages.forEach { remote ->
+                        localRepository.addMosqueImageWithId(
+                            id = 0,
+                            imageUri = remote.imageUri!!,
+                            displayOrder = remote.displayOrder,
+                            supabaseId = remote.id
+                        )
+                    }
+                }
+
+                Log.d(TAG, "✅ Images force-synced (${completedRemoteImages.size} images)")
+                Log.d(TAG, "✅ Force sync completed for device: $deviceName")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error during force sync", e)
             }
-
-            Log.d(TAG, "✅ Force sync completed")
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error during force sync", e)
         }
     }
 

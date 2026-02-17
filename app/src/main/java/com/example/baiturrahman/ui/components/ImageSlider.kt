@@ -75,13 +75,13 @@ fun ImageSlider(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Use SupabaseImage for cloud images
+                    // Use SupabaseImage for cloud images - no fallback to prevent placeholder appearing for failed loads
                     SupabaseImage(
                         imageUrl = images[page],
                         contentDescription = "Mosque Image ${page + 1}",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        fallbackResourceId = R.drawable.mosque
+                        fallbackResourceId = null
                     )
                 }
             }

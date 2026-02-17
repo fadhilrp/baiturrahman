@@ -12,6 +12,9 @@ data class ImageMetadata(
     @SerialName("id")
     val id: String = "",
 
+    @SerialName("device_name")
+    val deviceName: String = "",
+
     @SerialName("image_uri")
     val imageUri: String? = null,
 
@@ -59,6 +62,9 @@ enum class UploadStatus(val value: String) {
 data class CreateImageRequest(
     @SerialName("id")
     val id: String,
+
+    @SerialName("device_name")
+    val deviceName: String,
 
     @SerialName("display_order")
     val displayOrder: Int,

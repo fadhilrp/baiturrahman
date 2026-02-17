@@ -6,8 +6,6 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import com.example.baiturrahman.R
 import com.example.baiturrahman.ui.components.SupabaseImage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,12 +31,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -110,17 +107,17 @@ fun AdminDashboard(
     val quoteTextCharCount = quoteText.length
     val marqueeTextCharCount = marqueeText.length
 
-    // Manual sync state
-    var isSyncing by remember { mutableStateOf(false) }
+    // Loading states from ViewModel
+    val isSaving by viewModel.isSaving.collectAsState()
+    val isUploadingImage by viewModel.isUploadingImage.collectAsState()
+    val isUploadingLogo by viewModel.isUploadingLogo.collectAsState()
+    val isDeletingImage by viewModel.isDeletingImage.collectAsState()
 
     // Image picker launchers
     val logoImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let {
-            scope.launch {
-                snackbarHostState.showSnackbar("Mengupload logo... Periksa logcat untuk detail")
-            }
             viewModel.updateLogoImage(it.toString())
         }
     }
@@ -129,9 +126,6 @@ fun AdminDashboard(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let {
-            scope.launch {
-                snackbarHostState.showSnackbar("Mengupload gambar masjid... Periksa logcat untuk detail")
-            }
             viewModel.addMosqueImage(it.toString())
         }
     }
@@ -197,31 +191,6 @@ fun AdminDashboard(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
                     }
                 },
-                actions = {
-                    // Debug Supabase button
-                    IconButton(
-                        onClick = {
-                            viewModel.debugSupabaseConnection()
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Tes koneksi Supabase - periksa logcat")
-                            }
-                        }
-                    ) {
-                        Icon(Icons.Default.Build, contentDescription = "Debug Supabase")
-                    }
-
-                    // Add Force Sync button
-                    IconButton(
-                        onClick = {
-                            scope.launch {
-                                syncService.forceSyncNow()
-                                snackbarHostState.showSnackbar("Paksa sinkronisasi dipicu - periksa log")
-                            }
-                        }
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Paksa Sinkronisasi")
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = emeraldGreen,
                     titleContentColor = Color.White,
@@ -240,43 +209,6 @@ fun AdminDashboard(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Debug Info Section - Always show this
-            AdminSection(
-                title = "Info Debug & Koneksi",
-                content = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text("Perangkat: ${devicePreferences.deviceName}")
-                        Text("Perangkat Utama: ${if (devicePreferences.isMasterDevice) "Ya" else "Tidak"}")
-                        Text("Sinkronisasi Aktif: ${if (devicePreferences.syncEnabled) "Ya" else "Tidak"}")
-
-                        // Debug buttons
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = {
-                                    viewModel.debugSupabaseConnection()
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Tes koneksi Supabase dimulai - periksa logcat dengan filter 'ImageRepository'")
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Blue)
-                            ) {
-                                Text("Tes Supabase", color = Color.White)
-                            }
-                        }
-
-                        Text(
-                            text = "💡 Tip: Buka logcat dan filter dengan 'ImageRepository' atau 'MosqueDashboardViewModel' untuk melihat log detail upload",
-                            color = Color.Gray,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-            )
-
             // Sync Settings Section
             AdminSection(
                 title = "Pengaturan Sinkronisasi",
@@ -396,9 +328,6 @@ fun AdminDashboard(
                                             ) == PackageManager.PERMISSION_GRANTED
 
                                             if (hasPermission) {
-                                                scope.launch {
-                                                    snackbarHostState.showSnackbar("Mengupload logo... Periksa logcat untuk detail")
-                                                }
                                                 logoImageLauncher.launch("image/*")
                                             } else {
                                                 requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_MEDIA_IMAGES))
@@ -410,22 +339,30 @@ fun AdminDashboard(
                                             ) == PackageManager.PERMISSION_GRANTED
 
                                             if (hasPermission) {
-                                                scope.launch {
-                                                    snackbarHostState.showSnackbar("Mengupload logo... Periksa logcat untuk detail")
-                                                }
                                                 logoImageLauncher.launch("image/*")
                                             } else {
                                                 requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
                                             }
                                         }
                                     },
+                                    enabled = !isUploadingLogo,
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = emeraldGreen
                                     )
                                 ) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Ubah Logo")
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Ubah Logo")
+                                    if (isUploadingLogo) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Mengupload...")
+                                    } else {
+                                        Icon(Icons.Default.Edit, contentDescription = "Ubah Logo")
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Ubah Logo")
+                                    }
                                 }
                             }
                         }
@@ -528,6 +465,12 @@ fun AdminDashboard(
                         Column(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
+                            Text(
+                                text = "Gambar yang diupload akan otomatis tersimpan dan disinkronkan ke database.",
+                                color = Color.Gray,
+                                fontSize = 13.sp
+                            )
+
                             // Current images
                             if (mosqueImages.isNotEmpty()) {
                                 LazyRow(
@@ -543,23 +486,21 @@ fun AdminDashboard(
                                                 .clip(RoundedCornerShape(8.dp))
                                                 .border(1.dp, emeraldGreen, RoundedCornerShape(8.dp))
                                         ) {
-                                            // Use SupabaseImage for better error handling
+                                            // Use SupabaseImage - no fallback so deleted images don't show placeholder
                                             SupabaseImage(
                                                 imageUrl = imageUri,
                                                 contentDescription = "Gambar Masjid ${index + 1}",
                                                 modifier = Modifier.fillMaxSize(),
                                                 contentScale = ContentScale.Crop,
-                                                fallbackResourceId = R.drawable.mosque
+                                                fallbackResourceId = null
                                             )
 
                                             // Delete button
                                             IconButton(
                                                 onClick = {
-                                                    scope.launch {
-                                                        snackbarHostState.showSnackbar("Menghapus gambar... Periksa logcat untuk detail")
-                                                    }
                                                     viewModel.removeMosqueImage(index)
                                                 },
+                                                enabled = !isDeletingImage && !isUploadingImage,
                                                 modifier = Modifier
                                                     .align(Alignment.TopEnd)
                                                     .size(32.dp)
@@ -602,19 +543,27 @@ fun AdminDashboard(
                             if (mosqueImages.size < 5) {
                                 Button(
                                     onClick = {
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar("Memilih gambar untuk diupload...")
-                                        }
                                         checkAndRequestPermissions()
                                     },
+                                    enabled = !isUploadingImage,
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = emeraldGreen
                                     ),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Icon(Icons.Default.Add, contentDescription = "Tambah Gambar Masjid")
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Tambah Gambar (${mosqueImages.size}/5)")
+                                    if (isUploadingImage) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Mengupload...")
+                                    } else {
+                                        Icon(Icons.Default.Add, contentDescription = "Tambah Gambar Masjid")
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Tambah Gambar (${mosqueImages.size}/5)")
+                                    }
                                 }
                             } else {
                                 Text(
@@ -655,58 +604,58 @@ fun AdminDashboard(
                 // Save Button - only show for master devices
                 Button(
                     onClick = {
-                        viewModel.updateQuoteText(quoteText)
-                        viewModel.updateMosqueName(mosqueName)
-                        viewModel.updateMosqueLocation(mosqueLocation)
-                        viewModel.updateMarqueeText(marqueeText)
-                        viewModel.updatePrayerAddress(prayerAddress)
-                        viewModel.updatePrayerTimezone(prayerTimezone)
+                        val oldName = devicePreferences.deviceName
+                        val newName = deviceName
 
-                        // Update device preferences
-                        devicePreferences.deviceName = deviceName
-                        devicePreferences.isMasterDevice = isMasterDevice
-                        devicePreferences.syncEnabled = syncEnabled
+                        scope.launch {
+                            // Rename remote data if device name changed
+                            if (oldName != newName && newName.isNotBlank()) {
+                                val success = viewModel.renameDevice(oldName, newName)
+                                if (!success) {
+                                    snackbarHostState.showSnackbar("Gagal mengubah nama perangkat")
+                                    return@launch
+                                }
+                            }
 
-                        viewModel.saveAllSettings() // This will trigger push to PostgreSQL
-                        onClose()
+                            viewModel.updateQuoteText(quoteText)
+                            viewModel.updateMosqueName(mosqueName)
+                            viewModel.updateMosqueLocation(mosqueLocation)
+                            viewModel.updateMarqueeText(marqueeText)
+                            viewModel.updatePrayerAddress(prayerAddress)
+                            viewModel.updatePrayerTimezone(prayerTimezone)
+
+                            // Update device preferences
+                            devicePreferences.deviceName = newName
+                            devicePreferences.isMasterDevice = isMasterDevice
+                            devicePreferences.syncEnabled = syncEnabled
+
+                            // Restart sync to pick up new device name
+                            syncService.stopSync()
+                            syncService.startSync()
+
+                            viewModel.saveAllSettings() // This will trigger push to PostgreSQL
+                            onClose()
+                        }
                     },
+                    enabled = !isSaving,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = emeraldGreen
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = "Simpan Perubahan")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Simpan Perubahan")
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Manual Sync Button
-                Button(
-                    onClick = {
-                        isSyncing = true
-                        scope.launch {
-                            try {
-                                snackbarHostState.showSnackbar("Memulai sinkronisasi manual...")
-                                syncService.forceSyncNow()
-                                snackbarHostState.showSnackbar("✅ Sinkronisasi berhasil! Periksa logcat untuk detail.")
-                            } catch (e: Exception) {
-                                snackbarHostState.showSnackbar("❌ Sinkronisasi gagal: ${e.message}")
-                            } finally {
-                                isSyncing = false
-                            }
-                        }
-                    },
-                    enabled = !isSyncing,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSyncing) Color.Gray else Color(0xFF2196F3)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Paksa Sinkronisasi")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (isSyncing) "Sinkronisasi..." else "Paksa Sinkronisasi Sekarang")
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Menyimpan...")
+                    } else {
+                        Icon(Icons.Default.Check, contentDescription = "Simpan Perubahan")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Simpan Perubahan")
+                    }
                 }
             } else {
                 // Show message for non-master devices
@@ -746,20 +695,50 @@ fun AdminDashboard(
                 // Save Button for sync settings only
                 Button(
                     onClick = {
-                        // Update device preferences
-                        devicePreferences.deviceName = deviceName
-                        devicePreferences.isMasterDevice = isMasterDevice
-                        devicePreferences.syncEnabled = syncEnabled
-                        onClose()
+                        val oldName = devicePreferences.deviceName
+                        val newName = deviceName
+
+                        scope.launch {
+                            // Rename remote data if device name changed
+                            if (oldName != newName && newName.isNotBlank()) {
+                                val success = viewModel.renameDevice(oldName, newName)
+                                if (!success) {
+                                    snackbarHostState.showSnackbar("Gagal mengubah nama perangkat")
+                                    return@launch
+                                }
+                            }
+
+                            // Update device preferences
+                            devicePreferences.deviceName = newName
+                            devicePreferences.isMasterDevice = isMasterDevice
+                            devicePreferences.syncEnabled = syncEnabled
+
+                            // Restart sync to pick up new device name
+                            syncService.stopSync()
+                            syncService.startSync()
+
+                            onClose()
+                        }
                     },
+                    enabled = !isSaving,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = emeraldGreen
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = "Simpan Pengaturan Sinkronisasi")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Simpan Pengaturan Sinkronisasi")
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Menyimpan...")
+                    } else {
+                        Icon(Icons.Default.Check, contentDescription = "Simpan Pengaturan Sinkronisasi")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Simpan Pengaturan Sinkronisasi")
+                    }
                 }
             }
         }

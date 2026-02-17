@@ -10,7 +10,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class MosqueSettingsRemote(
     @SerialName("id")
-    val id: Int = 1, // Always 1, single row table
+    val id: Int = 1,
+
+    @SerialName("device_name")
+    val deviceName: String = "",
 
     @SerialName("mosque_name")
     val mosqueName: String = "Masjid Baiturrahman",
@@ -42,6 +45,9 @@ data class MosqueSettingsRemote(
  */
 @Serializable
 data class UpdateMosqueSettingsRequest(
+    @SerialName("device_name")
+    val deviceName: String,
+
     @SerialName("mosque_name")
     val mosqueName: String,
 

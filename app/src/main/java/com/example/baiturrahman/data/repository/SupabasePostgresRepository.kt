@@ -8,8 +8,13 @@ import com.example.baiturrahman.data.model.UpdateImageUrlRequest
 import com.example.baiturrahman.data.model.UpdateMosqueSettingsRequest
 import com.example.baiturrahman.data.remote.SupabaseClient
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.postgrest.rpc
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * Repository for Supabase PostgreSQL operations
@@ -30,6 +35,7 @@ class SupabasePostgresRepository {
     /**
      * Create a new image record in PostgreSQL with "uploading" status
      * @param id UUID for the image
+     * @param deviceName Device name for this image
      * @param displayOrder Order in the slider
      * @param fileSize Size in bytes
      * @param mimeType MIME type (e.g., "image/jpeg")
@@ -37,15 +43,17 @@ class SupabasePostgresRepository {
      */
     suspend fun createImageRecord(
         id: String,
+        deviceName: String,
         displayOrder: Int,
         fileSize: Long,
         mimeType: String
     ): ImageMetadata? {
         return try {
-            Log.d(TAG, "Creating image record: id=$id, order=$displayOrder, size=$fileSize")
+            Log.d(TAG, "Creating image record: id=$id, device=$deviceName, order=$displayOrder, size=$fileSize")
 
             val request = CreateImageRequest(
                 id = id,
+                deviceName = deviceName,
                 displayOrder = displayOrder,
                 fileSize = fileSize,
                 mimeType = mimeType,
@@ -147,23 +155,25 @@ class SupabasePostgresRepository {
     }
 
     /**
-     * Get images with status "completed" only
+     * Get images with status "completed" only for a specific device
+     * @param deviceName Device name to filter by
      * @return List of ImageMetadata
      */
-    suspend fun getCompletedImages(): List<ImageMetadata> {
+    suspend fun getCompletedImages(deviceName: String): List<ImageMetadata> {
         return try {
-            Log.d(TAG, "Fetching completed images from PostgreSQL")
+            Log.d(TAG, "Fetching completed images from PostgreSQL for device: $deviceName")
 
             val result = client.from(IMAGES_TABLE)
                 .select {
                     filter {
                         eq("upload_status", "completed")
+                        eq("device_name", deviceName)
                     }
                     order(column = "display_order", order = Order.ASCENDING)
                 }
                 .decodeList<ImageMetadata>()
 
-            Log.d(TAG, "✅ Fetched ${result.size} completed images")
+            Log.d(TAG, "✅ Fetched ${result.size} completed images for device: $deviceName")
             result
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error fetching completed images", e)
@@ -195,28 +205,176 @@ class SupabasePostgresRepository {
         }
     }
 
+    // ========== RPC OPERATIONS (Atomic) ==========
+
+    /**
+     * Atomic single-call image record creation via RPC.
+     * Replaces the two-step createImageRecord() → updateImageUrl() pattern.
+     * @return ImageMetadata if successful, null otherwise
+     */
+    suspend fun uploadImageAtomic(
+        id: String,
+        deviceName: String,
+        displayOrder: Int,
+        fileSize: Long,
+        mimeType: String,
+        imageUri: String
+    ): ImageMetadata? {
+        return try {
+            Log.d(TAG, "Calling upload_image_atomic RPC: id=$id, device=$deviceName")
+
+            val params = buildJsonObject {
+                put("p_id", id)
+                put("p_device_name", deviceName)
+                put("p_display_order", displayOrder)
+                put("p_file_size", fileSize)
+                put("p_mime_type", mimeType)
+                put("p_image_uri", imageUri)
+                put("p_upload_status", "completed")
+            }
+
+            val metadata = client.postgrest.rpc("upload_image_atomic", params)
+                .decodeAs<ImageMetadata>()
+
+            Log.d(TAG, "✅ upload_image_atomic succeeded: ${metadata.id}")
+            metadata
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ upload_image_atomic RPC failed", e)
+            null
+        }
+    }
+
+    /**
+     * Atomic delete + reorder via RPC.
+     * Deletes the image and reorders remaining images for the device.
+     * @return List of remaining images after reorder, or null on failure
+     */
+    suspend fun deleteImageAndReorder(imageId: String, deviceName: String): List<ImageMetadata>? {
+        return try {
+            Log.d(TAG, "Calling delete_image_and_reorder RPC: id=$imageId, device=$deviceName")
+
+            val params = buildJsonObject {
+                put("p_image_id", imageId)
+                put("p_device_name", deviceName)
+            }
+
+            val images = client.postgrest.rpc("delete_image_and_reorder", params)
+                .decodeAs<List<ImageMetadata>>()
+
+            Log.d(TAG, "✅ delete_image_and_reorder succeeded: ${images.size} remaining")
+            images
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ delete_image_and_reorder RPC failed", e)
+            null
+        }
+    }
+
+    /**
+     * Batch upsert images via RPC (for migration).
+     * Inherently idempotent via ON CONFLICT ... DO UPDATE.
+     * @return Number of upserted records, or -1 on failure
+     */
+    suspend fun batchUpsertImages(imagesJson: String): Int {
+        return try {
+            Log.d(TAG, "Calling batch_upsert_images RPC")
+
+            val params = buildJsonObject {
+                put("p_images", Json.parseToJsonElement(imagesJson))
+            }
+
+            val jsonResult = client.postgrest.rpc("batch_upsert_images", params)
+                .decodeAs<kotlinx.serialization.json.JsonObject>()
+
+            val count = jsonResult["upserted"]?.toString()?.toIntOrNull() ?: 0
+            Log.d(TAG, "✅ batch_upsert_images succeeded: $count upserted")
+            count
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ batch_upsert_images RPC failed", e)
+            -1
+        }
+    }
+
+    /**
+     * Clean up stale uploads stuck in "uploading" status.
+     * Called at app startup to remove orphaned records.
+     * @param deviceName Device name to filter by
+     * @param thresholdMinutes Minutes after which an "uploading" record is considered stale
+     * @return Number of deleted records, or -1 on failure
+     */
+    suspend fun cleanupStaleUploads(deviceName: String, thresholdMinutes: Int = 30): Int {
+        return try {
+            Log.d(TAG, "Cleaning up stale uploads for device: $deviceName (threshold: ${thresholdMinutes}min)")
+
+            val result = client.from(IMAGES_TABLE)
+                .delete {
+                    filter {
+                        eq("device_name", deviceName)
+                        eq("upload_status", "uploading")
+                        lt("created_at", "now() - interval '$thresholdMinutes minutes'")
+                    }
+                    select()
+                }
+                .decodeList<ImageMetadata>()
+
+            Log.d(TAG, "✅ Cleaned up ${result.size} stale uploads")
+            result.size
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error cleaning up stale uploads", e)
+            -1
+        }
+    }
+
+    // ========== DEVICE OPERATIONS ==========
+
+    /**
+     * Rename a device atomically across both tables via RPC.
+     * @param oldName Current device name
+     * @param newName New device name
+     * @return true if successful
+     */
+    suspend fun renameDevice(oldName: String, newName: String): Boolean {
+        return try {
+            Log.d(TAG, "Calling rename_device RPC: '$oldName' -> '$newName'")
+
+            val params = buildJsonObject {
+                put("p_old_name", oldName)
+                put("p_new_name", newName)
+            }
+
+            val result = client.postgrest.rpc("rename_device", params)
+                .decodeAs<kotlinx.serialization.json.JsonObject>()
+
+            Log.d(TAG, "✅ rename_device succeeded: $result")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ rename_device RPC failed", e)
+            false
+        }
+    }
+
     // ========== SETTINGS OPERATIONS ==========
 
     /**
-     * Get mosque settings from PostgreSQL
+     * Get mosque settings from PostgreSQL for a specific device
+     * @param deviceName Device name to filter by
      * @return MosqueSettingsRemote if found, null otherwise
      */
-    suspend fun getSettings(): MosqueSettingsRemote? {
+    suspend fun getSettings(deviceName: String): MosqueSettingsRemote? {
         return try {
-            Log.d(TAG, "Fetching mosque settings from PostgreSQL")
+            Log.d(TAG, "Fetching mosque settings from PostgreSQL for device: $deviceName")
 
             val result = client.from(SETTINGS_TABLE)
                 .select {
                     filter {
-                        eq("id", 1)
+                        eq("device_name", deviceName)
                     }
                 }
                 .decodeSingleOrNull<MosqueSettingsRemote>()
 
             if (result != null) {
-                Log.d(TAG, "✅ Settings fetched: ${result.mosqueName}")
+                Log.d(TAG, "✅ Settings fetched for device $deviceName: ${result.mosqueName}")
             } else {
-                Log.d(TAG, "⚠️ No settings found in PostgreSQL")
+                Log.d(TAG, "⚠️ No settings found in PostgreSQL for device: $deviceName")
             }
             result
         } catch (e: Exception) {
@@ -226,27 +384,26 @@ class SupabasePostgresRepository {
     }
 
     /**
-     * Update mosque settings in PostgreSQL
-     * @param settings The settings to update
+     * Update or insert mosque settings in PostgreSQL for a specific device
+     * @param settings The settings to update (includes device_name)
      * @return true if successful
      */
     suspend fun updateSettings(settings: UpdateMosqueSettingsRequest): Boolean {
         return try {
-            Log.d(TAG, "Updating mosque settings in PostgreSQL")
+            Log.d(TAG, "Upserting mosque settings in PostgreSQL for device: ${settings.deviceName}")
 
+            // Use upsert to create or update based on device_name
             client.from(SETTINGS_TABLE)
-                .update(settings) {
-                    filter {
-                        eq("id", 1)
-                    }
+                .upsert(settings) {
+                    onConflict = "device_name"
                     select()
                 }
                 .decodeSingleOrNull<MosqueSettingsRemote>()
 
-            Log.d(TAG, "✅ Settings updated in PostgreSQL")
+            Log.d(TAG, "✅ Settings upserted in PostgreSQL for device: ${settings.deviceName}")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error updating settings", e)
+            Log.e(TAG, "❌ Error upserting settings", e)
             false
         }
     }
@@ -254,16 +411,17 @@ class SupabasePostgresRepository {
     /**
      * Update only the logo image URL in settings
      * @param logoUrl Public URL of the logo
+     * @param deviceName Device name to filter by
      * @return true if successful
      */
-    suspend fun updateLogoImage(logoUrl: String?): Boolean {
+    suspend fun updateLogoImage(logoUrl: String?, deviceName: String): Boolean {
         return try {
-            Log.d(TAG, "Updating logo image in PostgreSQL: $logoUrl")
+            Log.d(TAG, "Updating logo image in PostgreSQL: $logoUrl for device: $deviceName")
 
             client.from(SETTINGS_TABLE)
                 .update(mapOf("logo_image" to logoUrl)) {
                     filter {
-                        eq("id", 1)
+                        eq("device_name", deviceName)
                     }
                     select()
                 }
@@ -285,17 +443,15 @@ class SupabasePostgresRepository {
         return try {
             Log.d(TAG, "🧪 Testing PostgreSQL connection...")
 
-            val result = client.from(SETTINGS_TABLE)
+            // Simple select with limit 1, no hardcoded id filter
+            client.from(SETTINGS_TABLE)
                 .select {
-                    filter {
-                        eq("id", 1)
-                    }
+                    limit(1)
                 }
-                .decodeSingleOrNull<MosqueSettingsRemote>()
+                .decodeList<MosqueSettingsRemote>()
 
-            val success = result != null
-            Log.d(TAG, if (success) "✅ PostgreSQL connection successful" else "⚠️ PostgreSQL connection failed - no data")
-            success
+            Log.d(TAG, "✅ PostgreSQL connection successful")
+            true
         } catch (e: Exception) {
             Log.e(TAG, "❌ PostgreSQL connection test failed", e)
             false

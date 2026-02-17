@@ -22,13 +22,13 @@ val appModule = module {
     single { PrayerTimeRepository() }
     single { SupabasePostgresRepository() }
     single { ImageRepository(androidApplication(), get()) }
-    single { MosqueSettingsRepository(get(), get(), get()) }
+    single { MosqueSettingsRepository(get(), get(), get(), get()) }
 
     // Sync Service
-    single { SupabaseSyncService(get(), get(), get()) }
+    single { SupabaseSyncService(get(), get(), get(), get()) }
 
     // ViewModels
-    viewModel { MosqueDashboardViewModel(get(), get(), get(), androidApplication()) }
+    viewModel { MosqueDashboardViewModel(get(), get(), get(), get(), androidApplication(), get()) }
 
     // Preferences
     single { DevicePreferences(androidApplication()) }
