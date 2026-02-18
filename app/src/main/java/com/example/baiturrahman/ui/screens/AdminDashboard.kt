@@ -261,7 +261,7 @@ fun AdminDashboard(
                                         },
                                         enabled = deviceName.isNotBlank()
                                     ) {
-                                        Text("Simpan", color = if (deviceName.isNotBlank()) emeraldGreen else Color.Gray)
+                                        Text("Simpan", color = if (deviceName.isNotBlank()) EmeraldGreen else Color.Gray)
                                     }
                                 }
                             } else {
@@ -304,18 +304,10 @@ fun AdminDashboard(
                                         deviceName = ""
                                     }
                                 ) {
-                                    Text("+ Tambah Perangkat Baru", color = emeraldGreen)
+                                    Text("+ Tambah Perangkat Baru", color = EmeraldGreen)
                                 }
                             }
                         }
-                        OutlinedTextField(
-                            value = deviceName,
-                            onValueChange = { deviceName = it },
-                            label = { Text("Nama Perangkat") },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = textFieldColors
-                        )
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
