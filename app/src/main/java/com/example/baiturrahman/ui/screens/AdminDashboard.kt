@@ -49,6 +49,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -179,8 +180,12 @@ fun AdminDashboard(
     val devicePreferences = koinInject<DevicePreferences>()
     var isMasterDevice by remember { mutableStateOf(devicePreferences.isMasterDevice) }
     var deviceName by remember { mutableStateOf(devicePreferences.deviceName) }
-    var syncEnabled by remember { mutableStateOf(devicePreferences.syncEnabled) }
     val syncService = (context.applicationContext as BaiturrahmanApp).syncService
+
+    // Device name dropdown state
+    val deviceNames by viewModel.deviceNames.collectAsState()
+    var deviceNameMenuExpanded by remember { mutableStateOf(false) }
+    var isAddingNewDevice by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -217,12 +222,89 @@ fun AdminDashboard(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // Device Name
-                        OutlinedTextField(
-                            value = deviceName,
-                            onValueChange = { deviceName = it },
-                            label = { Text("Nama Perangkat") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Column {
+                            Text(
+                                text = "Nama Perangkat:",
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+
+                            if (isAddingNewDevice) {
+                                OutlinedTextField(
+                                    value = deviceName,
+                                    onValueChange = { deviceName = it },
+                                    label = { Text("Nama Perangkat Baru") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    TextButton(
+                                        onClick = {
+                                            isAddingNewDevice = false
+                                            // Reset to current saved name if user cancels
+                                            deviceName = devicePreferences.deviceName
+                                        }
+                                    ) {
+                                        Text("Batal", color = Color.Red)
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            if (deviceName.isNotBlank()) {
+                                                devicePreferences.deviceName = deviceName
+                                                isAddingNewDevice = false
+                                                viewModel.loadDeviceNames()
+                                            }
+                                        },
+                                        enabled = deviceName.isNotBlank()
+                                    ) {
+                                        Text("Simpan", color = if (deviceName.isNotBlank()) emeraldGreen else Color.Gray)
+                                    }
+                                }
+                            } else {
+                                Box(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.dp, Color.Gray, RoundedCornerShape(4.dp))
+                                            .clickable { deviceNameMenuExpanded = true }
+                                            .padding(16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(deviceName.ifEmpty { "Pilih Perangkat" })
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = "Pilih Perangkat"
+                                        )
+                                    }
+
+                                    DropdownMenu(
+                                        expanded = deviceNameMenuExpanded,
+                                        onDismissRequest = { deviceNameMenuExpanded = false },
+                                        modifier = Modifier.fillMaxWidth(0.9f)
+                                    ) {
+                                        deviceNames.forEach { name ->
+                                            DropdownMenuItem(
+                                                text = { Text(name) },
+                                                onClick = {
+                                                    deviceName = name
+                                                    deviceNameMenuExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                                TextButton(
+                                    onClick = {
+                                        isAddingNewDevice = true
+                                        deviceName = ""
+                                    }
+                                ) {
+                                    Text("+ Tambah Perangkat Baru", color = emeraldGreen)
+                                }
+                            }
+                        }
 
                         // Master Device Toggle
                         Row(
@@ -237,22 +319,9 @@ fun AdminDashboard(
                             )
                         }
 
-                        // Sync Enabled Toggle
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Aktifkan Sinkronisasi")
-                            androidx.compose.material3.Switch(
-                                checked = syncEnabled,
-                                onCheckedChange = { syncEnabled = it }
-                            )
-                        }
-
                         // Info text
                         Text(
-                            text = "Ketika sinkronisasi diaktifkan, perangkat ini akan menerima pembaruan dari perangkat utama. Jika ini adalah perangkat utama, perubahan yang dibuat di sini akan memperbarui semua TV lain.",
+                            text = "Perangkat utama dapat mengubah pengaturan untuk semua TV. Perangkat non-utama menerima pembaruan secara otomatis dari perangkat utama.",
                             color = Color.Gray,
                             fontSize = 14.sp
                         )
@@ -608,7 +677,6 @@ fun AdminDashboard(
                         val newName = deviceName
 
                         scope.launch {
-                            // Rename remote data if device name changed
                             if (oldName != newName && newName.isNotBlank()) {
                                 val success = viewModel.renameDevice(oldName, newName)
                                 if (!success) {
@@ -624,16 +692,13 @@ fun AdminDashboard(
                             viewModel.updatePrayerAddress(prayerAddress)
                             viewModel.updatePrayerTimezone(prayerTimezone)
 
-                            // Update device preferences
                             devicePreferences.deviceName = newName
                             devicePreferences.isMasterDevice = isMasterDevice
-                            devicePreferences.syncEnabled = syncEnabled
 
-                            // Restart sync to pick up new device name
                             syncService.stopSync()
                             syncService.startSync()
 
-                            viewModel.saveAllSettings() // This will trigger push to PostgreSQL
+                            viewModel.saveAllSettings()
                             onClose()
                         }
                     },
@@ -699,7 +764,6 @@ fun AdminDashboard(
                         val newName = deviceName
 
                         scope.launch {
-                            // Rename remote data if device name changed
                             if (oldName != newName && newName.isNotBlank()) {
                                 val success = viewModel.renameDevice(oldName, newName)
                                 if (!success) {
@@ -708,12 +772,9 @@ fun AdminDashboard(
                                 }
                             }
 
-                            // Update device preferences
                             devicePreferences.deviceName = newName
                             devicePreferences.isMasterDevice = isMasterDevice
-                            devicePreferences.syncEnabled = syncEnabled
 
-                            // Restart sync to pick up new device name
                             syncService.stopSync()
                             syncService.startSync()
 
@@ -741,6 +802,7 @@ fun AdminDashboard(
                     }
                 }
             }
+
         }
     }
 }

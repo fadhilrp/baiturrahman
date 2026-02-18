@@ -100,6 +100,10 @@ class MosqueDashboardViewModel(
     private val _isDeletingImage = MutableStateFlow(false)
     val isDeletingImage: StateFlow<Boolean> = _isDeletingImage.asStateFlow()
 
+    // Available device names from Supabase
+    private val _deviceNames = MutableStateFlow<List<String>>(emptyList())
+    val deviceNames: StateFlow<List<String>> = _deviceNames.asStateFlow()
+
     // Database image IDs — stores both Room ID and Supabase ID
     private data class ImageIds(val roomId: Int, val supabaseId: String?)
     private val imageIdMap = mutableMapOf<String, ImageIds>()
@@ -109,9 +113,16 @@ class MosqueDashboardViewModel(
         loadSavedSettings()
         fetchPrayerTimes()
         startImageSlider()
+        loadDeviceNames()
 
         // Test Supabase connection on startup
         testSupabaseConnection()
+    }
+
+    fun loadDeviceNames() {
+        viewModelScope.launch {
+            _deviceNames.value = settingsRepository.getAllDeviceNames()
+        }
     }
 
     private fun testSupabaseConnection() {
