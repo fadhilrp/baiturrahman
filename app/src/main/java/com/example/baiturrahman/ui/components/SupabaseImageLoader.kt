@@ -2,10 +2,14 @@ package com.example.baiturrahman.ui.components
 
 import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,6 +25,8 @@ import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.example.baiturrahman.ui.theme.DarkSurface
+import com.example.baiturrahman.ui.theme.TextTertiary
 
 @Composable
 fun SupabaseImage(
@@ -33,7 +39,6 @@ fun SupabaseImage(
     val context = LocalContext.current
 
     if (imageUrl.isNullOrEmpty()) {
-        // Show fallback image if no URL provided
         if (fallbackResourceId != null) {
             Image(
                 painter = painterResource(id = fallbackResourceId),
@@ -57,29 +62,36 @@ fun SupabaseImage(
             isLoading = state is AsyncImagePainter.State.Loading
             hasError = state is AsyncImagePainter.State.Error
 
-            // Log errors for debugging
             if (state is AsyncImagePainter.State.Error) {
-                Log.e("SupabaseImage", "═══════════════════════════════════════")
-                Log.e("SupabaseImage", "❌ FAILED TO LOAD IMAGE")
-                Log.e("SupabaseImage", "URL: $imageUrl")
-                Log.e("SupabaseImage", "Error: ${state.result.throwable.message}")
-                Log.e("SupabaseImage", "Exception type: ${state.result.throwable.javaClass.simpleName}")
-                Log.e("SupabaseImage", "═══════════════════════════════════════", state.result.throwable)
+                Log.e("SupabaseImage", "Failed to load image: $imageUrl", state.result.throwable)
             }
         }
     )
 
     Box(modifier = modifier) {
         if (hasError && fallbackResourceId != null) {
-            // Show fallback image on error
             Image(
                 painter = painterResource(id = fallbackResourceId),
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = contentScale
             )
+        } else if (hasError) {
+            // Subtle broken-image icon on dark surface
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(DarkSurface, RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "Image failed to load",
+                    tint = TextTertiary,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
         } else {
-            // Show the loaded image
             Image(
                 painter = painter,
                 contentDescription = contentDescription,
@@ -88,12 +100,9 @@ fun SupabaseImage(
             )
         }
 
-        // Show loading indicator
         if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .size(24.dp)
-                    .align(Alignment.Center)
+            ShimmerBox(
+                modifier = Modifier.fillMaxSize()
             )
         }
     }
