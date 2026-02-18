@@ -7,7 +7,6 @@ import com.example.baiturrahman.data.local.dao.MosqueImageDao
 import com.example.baiturrahman.data.local.dao.MosqueSettingsDao
 import com.example.baiturrahman.data.local.entity.MosqueImage
 import com.example.baiturrahman.data.local.entity.MosqueSettings
-import com.example.baiturrahman.data.model.UpdateMosqueSettingsRequest
 import kotlinx.coroutines.flow.Flow
 
 class MosqueSettingsRepository(
@@ -20,16 +19,16 @@ class MosqueSettingsRepository(
         private const val TAG = "MosqueSettingsRepo"
     }
 
-    // Settings
     val mosqueSettings: Flow<MosqueSettings?> = mosqueSettingsDao.getSettings()
+    val mosqueImages: Flow<List<MosqueImage>> = mosqueImageDao.getAllImages()
 
     /**
-     * Save settings to local Room database AND push to Supabase PostgreSQL
-     * @param deviceName Device name for device-specific settings
-     * @param pushToRemote If true, also pushes changes to PostgreSQL. Set to false when syncing from remote to avoid loops.
+     * Save settings to local Room AND push to Supabase via RPC.
+     * @param sessionToken Auth token for the RPC call
+     * @param pushToRemote Set to false when syncing from remote to avoid loops
      */
     suspend fun saveSettings(
-        deviceName: String,
+        sessionToken: String,
         mosqueName: String,
         mosqueLocation: String,
         logoImage: String?,
@@ -39,7 +38,6 @@ class MosqueSettingsRepository(
         marqueeText: String,
         pushToRemote: Boolean = true
     ) {
-        // Save to local Room database
         val settings = MosqueSettings(
             mosqueName = mosqueName,
             mosqueLocation = mosqueLocation,
@@ -50,13 +48,12 @@ class MosqueSettingsRepository(
             marqueeText = marqueeText
         )
         mosqueSettingsDao.insertSettings(settings)
-        Log.d(TAG, "Settings saved to local database for device: $deviceName")
+        Log.d(TAG, "Settings saved to local DB")
 
-        // Push to Supabase PostgreSQL (only if pushToRemote is true)
         if (pushToRemote) {
             try {
-                val request = UpdateMosqueSettingsRequest(
-                    deviceName = deviceName,
+                postgresRepository.upsertSettingsByToken(
+                    token = sessionToken,
                     mosqueName = mosqueName,
                     mosqueLocation = mosqueLocation,
                     logoImage = logoImage,
@@ -65,49 +62,31 @@ class MosqueSettingsRepository(
                     quoteText = quoteText,
                     marqueeText = marqueeText
                 )
-
-                val success = postgresRepository.updateSettings(request)
-                if (success) {
-                    Log.d(TAG, "✅ Settings pushed to PostgreSQL for device: $deviceName")
-                } else {
-                    Log.w(TAG, "⚠️ Failed to push settings to PostgreSQL for device: $deviceName")
-                }
+                Log.d(TAG, "Settings pushed to remote")
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Error pushing settings to PostgreSQL", e)
-                // Don't fail the operation - local save succeeded
+                Log.e(TAG, "Failed to push settings to remote", e)
             }
-        } else {
-            Log.d(TAG, "Skipping remote push (syncing from remote)")
         }
     }
-
-    // Images
-    val mosqueImages: Flow<List<MosqueImage>> = mosqueImageDao.getAllImages()
 
     suspend fun addMosqueImage(imageUri: String, supabaseId: String? = null) {
         val currentCount = mosqueImageDao.getImageCount()
-        if (currentCount < 5) { // Maximum 5 images
-            val image = MosqueImage(
-                imageUri = imageUri,
-                displayOrder = currentCount,
-                supabaseId = supabaseId
+        if (currentCount < 5) {
+            mosqueImageDao.insertImage(
+                MosqueImage(imageUri = imageUri, displayOrder = currentCount, supabaseId = supabaseId)
             )
-            mosqueImageDao.insertImage(image)
         }
     }
 
-    /**
-     * Fetch all device names from remote Supabase.
-     */
-    suspend fun getAllDeviceNames(): List<String> {
-        return postgresRepository.getAllDeviceNames()
-    }
-
-    /**
-     * Rename device atomically in remote PostgreSQL (both tables).
-     */
-    suspend fun renameDevice(oldName: String, newName: String): Boolean {
-        return postgresRepository.renameDevice(oldName, newName)
+    suspend fun addMosqueImageWithId(
+        id: Int,
+        imageUri: String,
+        displayOrder: Int,
+        supabaseId: String? = null
+    ) {
+        mosqueImageDao.insertImage(
+            MosqueImage(id = id, imageUri = imageUri, displayOrder = displayOrder, supabaseId = supabaseId)
+        )
     }
 
     suspend fun removeMosqueImage(imageId: Int) {
@@ -125,21 +104,6 @@ class MosqueSettingsRepository(
             mosqueSettingsDao.deleteAllSettings()
             mosqueImageDao.deleteAllImages()
         }
-    }
-
-    suspend fun addMosqueImageWithId(
-        id: Int,
-        imageUri: String,
-        displayOrder: Int,
-        supabaseId: String? = null
-    ) {
-        val image = MosqueImage(
-            id = id,
-            imageUri = imageUri,
-            displayOrder = displayOrder,
-            supabaseId = supabaseId
-        )
-        mosqueImageDao.insertImage(image)
     }
 
     suspend fun clearAllImages() {

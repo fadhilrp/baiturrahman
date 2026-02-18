@@ -4,16 +4,16 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Data model for mosque settings stored in Supabase PostgreSQL
- * Maps to the 'mosque_settings' table
+ * Data model for mosque settings stored in Supabase PostgreSQL.
+ * Maps to the 'mosque_settings' table (account_id replaces device_name).
  */
 @Serializable
 data class MosqueSettingsRemote(
     @SerialName("id")
-    val id: Int = 1,
+    val id: Int = 0,
 
-    @SerialName("device_name")
-    val deviceName: String = "",
+    @SerialName("account_id")
+    val accountId: String? = null,
 
     @SerialName("mosque_name")
     val mosqueName: String = "Masjid Baiturrahman",
@@ -37,35 +37,5 @@ data class MosqueSettingsRemote(
     val marqueeText: String = "Rolling Text",
 
     @SerialName("updated_at")
-    val updatedAt: String = "" // ISO 8601 timestamp
-)
-
-/**
- * Request model for updating mosque settings
- */
-@Serializable
-data class UpdateMosqueSettingsRequest(
-    @SerialName("device_name")
-    val deviceName: String,
-
-    @SerialName("mosque_name")
-    val mosqueName: String,
-
-    @SerialName("mosque_location")
-    val mosqueLocation: String,
-
-    @SerialName("logo_image")
-    val logoImage: String? = null,
-
-    @SerialName("prayer_address")
-    val prayerAddress: String,
-
-    @SerialName("prayer_timezone")
-    val prayerTimezone: String,
-
-    @SerialName("quote_text")
-    val quoteText: String,
-
-    @SerialName("marquee_text")
-    val marqueeText: String
+    val updatedAt: String = ""
 )

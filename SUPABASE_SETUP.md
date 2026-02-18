@@ -1,491 +1,650 @@
-# Supabase Setup Instructions
+# Supabase Setup — Account Management System
 
-This document provides step-by-step instructions for setting up the Supabase backend for the Baiturrahman application.
+This document covers the complete Supabase setup for the account-based authentication system.
+All data access goes through `SECURITY DEFINER` RPC functions — the anon key never touches
+raw password values or credential tables directly.
+
+---
 
 ## Prerequisites
 
-- Supabase account at https://supabase.com
-- Existing project or create a new one
-- Project URL and anon key (found in Project Settings > API)
+- Supabase account and project
+- Project URL and anon key (Project Settings → API)
 
-## 1. Create PostgreSQL Tables
+---
 
-### 1.1 Create `mosque_images` Table
-
-Go to Supabase Dashboard > SQL Editor and run:
+## 1. Enable Extensions
 
 ```sql
--- Enable UUID extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+```
 
--- Create mosque_images table
-CREATE TABLE mosque_images (
+---
+
+## 2. Create New Tables
+
+### 2.1 `accounts` — one row per registered user
+
+```sql
+CREATE TABLE accounts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    device_name TEXT NOT NULL DEFAULT '',
-    image_uri TEXT,
-    display_order INTEGER NOT NULL DEFAULT 0,
-    upload_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    file_size BIGINT DEFAULT 0,
-    mime_type TEXT DEFAULT 'image/jpeg',
-    upload_status TEXT NOT NULL DEFAULT 'uploading',
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,           -- bcrypt via crypt(password, gen_salt('bf'))
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    last_active_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
--- Create index for faster queries
-CREATE INDEX idx_mosque_images_display_order ON mosque_images(display_order);
-CREATE INDEX idx_mosque_images_upload_status ON mosque_images(upload_status);
-CREATE INDEX idx_mosque_images_device_name ON mosque_images(device_name);
-
--- Create trigger to auto-update updated_at
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER update_mosque_images_updated_at
-    BEFORE UPDATE ON mosque_images
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
 ```
 
-### 1.2 Create `mosque_settings` Table
+### 2.2 `device_sessions` — one row per device login
 
 ```sql
--- Create mosque_settings table (device-specific)
-CREATE TABLE mosque_settings (
-    id SERIAL PRIMARY KEY,
-    device_name TEXT NOT NULL DEFAULT '' UNIQUE,
-    mosque_name TEXT NOT NULL DEFAULT 'Masjid Baiturrahman',
-    mosque_location TEXT NOT NULL DEFAULT 'Pondok Pinang',
-    logo_image TEXT,
-    prayer_address TEXT NOT NULL DEFAULT 'Lebak Bulus, Jakarta, ID',
-    prayer_timezone TEXT NOT NULL DEFAULT 'Asia/Jakarta',
-    quote_text TEXT NOT NULL DEFAULT 'Lorem ipsum dolor sit amet',
-    marquee_text TEXT NOT NULL DEFAULT 'Rolling Text',
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE device_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    session_token TEXT NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
+    device_identifier TEXT NOT NULL,       -- UUID generated once per install
+    device_label TEXT NOT NULL DEFAULT '', -- e.g. "Samsung Galaxy Tab A"
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create trigger to auto-update updated_at
-CREATE TRIGGER update_mosque_settings_updated_at
-    BEFORE UPDATE ON mosque_settings
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+CREATE INDEX ON device_sessions(account_id);
+CREATE INDEX ON device_sessions(session_token);
 ```
 
-## 2. Configure Row Level Security (RLS)
+---
 
-### 2.1 Enable RLS on Tables
+## 3. Migrate Existing Tables
+
+> **Note:** This clears existing device-specific data. Back up first if needed.
+
+### 3.1 Migrate `mosque_settings`
 
 ```sql
--- Enable RLS
-ALTER TABLE mosque_images ENABLE ROW LEVEL SECURITY;
+-- Clear existing device-specific data
+TRUNCATE mosque_settings;
+
+-- Drop old primary key and device_name constraint
+ALTER TABLE mosque_settings DROP CONSTRAINT IF EXISTS mosque_settings_pkey CASCADE;
+ALTER TABLE mosque_settings DROP CONSTRAINT IF EXISTS unique_device_name CASCADE;
+ALTER TABLE mosque_settings DROP COLUMN IF EXISTS device_name;
+ALTER TABLE mosque_settings DROP COLUMN IF EXISTS id;
+
+-- Add account_id as primary key
+ALTER TABLE mosque_settings ADD COLUMN account_id UUID REFERENCES accounts(id) ON DELETE CASCADE;
+ALTER TABLE mosque_settings ADD PRIMARY KEY (account_id);
+```
+
+### 3.2 Migrate `mosque_images`
+
+```sql
+-- Clear existing device-specific data
+TRUNCATE mosque_images;
+
+-- Remove device_name, add account_id
+ALTER TABLE mosque_images DROP COLUMN IF EXISTS device_name;
+ALTER TABLE mosque_images ADD COLUMN account_id UUID REFERENCES accounts(id) ON DELETE CASCADE;
+CREATE INDEX ON mosque_images(account_id);
+```
+
+---
+
+## 4. Enable Row Level Security (Lock Down Direct Access)
+
+```sql
+-- Enable RLS on all tables
+ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE device_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mosque_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mosque_images ENABLE ROW LEVEL SECURITY;
+
+-- Drop any existing permissive policies on data tables
+DROP POLICY IF EXISTS "Allow public read access to mosque_settings" ON mosque_settings;
+DROP POLICY IF EXISTS "Allow anon insert to mosque_settings" ON mosque_settings;
+DROP POLICY IF EXISTS "Allow anon update to mosque_settings" ON mosque_settings;
+DROP POLICY IF EXISTS "Allow public read access to mosque_images" ON mosque_images;
+DROP POLICY IF EXISTS "Allow anon insert to mosque_images" ON mosque_images;
+DROP POLICY IF EXISTS "Allow anon update to mosque_images" ON mosque_images;
+DROP POLICY IF EXISTS "Allow anon delete from mosque_images" ON mosque_images;
+
+-- Deny all direct anon access — all ops go through SECURITY DEFINER RPCs
+-- (No permissive policies = deny by default when RLS is enabled)
 ```
 
-### 2.2 Create RLS Policies
+---
+
+## 5. Storage Bucket
+
+The `mosque-images` bucket stays the same (logos and images).
+
+### 5.1 Create bucket (if not exists)
+
+1. Supabase Dashboard → Storage → Create bucket: `mosque-images`
+2. Toggle **Public bucket: ON**
+
+### 5.2 Storage policies (if not already set)
 
 ```sql
--- mosque_images policies
--- Allow anyone to read
-CREATE POLICY "Allow public read access to mosque_images"
-ON mosque_images FOR SELECT
-TO public
-USING (true);
-
--- Allow anon users to insert
-CREATE POLICY "Allow anon insert to mosque_images"
-ON mosque_images FOR INSERT
-TO anon
-WITH CHECK (true);
-
--- Allow anon users to update
-CREATE POLICY "Allow anon update to mosque_images"
-ON mosque_images FOR UPDATE
-TO anon
-USING (true)
-WITH CHECK (true);
-
--- Allow anon users to delete
-CREATE POLICY "Allow anon delete from mosque_images"
-ON mosque_images FOR DELETE
-TO anon
-USING (true);
-
--- mosque_settings policies
--- Allow anyone to read
-CREATE POLICY "Allow public read access to mosque_settings"
-ON mosque_settings FOR SELECT
-TO public
-USING (true);
-
--- Allow anon users to insert (for new device settings)
-CREATE POLICY "Allow anon insert to mosque_settings"
-ON mosque_settings FOR INSERT
-TO anon
-WITH CHECK (true);
-
--- Allow anon users to update
-CREATE POLICY "Allow anon update to mosque_settings"
-ON mosque_settings FOR UPDATE
-TO anon
-USING (true)
-WITH CHECK (true);
+CREATE POLICY "Public read" ON storage.objects FOR SELECT TO public USING (bucket_id = 'mosque-images');
+CREATE POLICY "Anon upload" ON storage.objects FOR INSERT TO anon WITH CHECK (bucket_id = 'mosque-images');
+CREATE POLICY "Anon update" ON storage.objects FOR UPDATE TO anon USING (bucket_id = 'mosque-images');
+CREATE POLICY "Anon delete" ON storage.objects FOR DELETE TO anon USING (bucket_id = 'mosque-images');
 ```
 
-## 3. Configure Storage Bucket
+---
 
-### 3.1 Create Storage Bucket (if not exists)
+## 6. RPC Functions
 
-1. Go to Supabase Dashboard > Storage
-2. Create new bucket named: `mosque-images`
-3. Make it **public** (toggle Public bucket: ON)
+All functions are `SECURITY DEFINER` — they run as the postgres role and can bypass RLS.
 
-### 3.2 Configure Bucket Policies
+### 6.1 `check_username_available`
 
 ```sql
--- Allow public read access
-CREATE POLICY "Public Access"
-ON storage.objects FOR SELECT
-TO public
-USING (bucket_id = 'mosque-images');
-
--- Allow anon uploads
-CREATE POLICY "Anon Upload"
-ON storage.objects FOR INSERT
-TO anon
-WITH CHECK (bucket_id = 'mosque-images');
-
--- Allow anon updates
-CREATE POLICY "Anon Update"
-ON storage.objects FOR UPDATE
-TO anon
-USING (bucket_id = 'mosque-images');
-
--- Allow anon deletes
-CREATE POLICY "Anon Delete"
-ON storage.objects FOR DELETE
-TO anon
-USING (bucket_id = 'mosque-images');
+CREATE OR REPLACE FUNCTION check_username_available(p_username TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    RETURN NOT EXISTS (SELECT 1 FROM accounts WHERE username = p_username);
+END; $$;
 ```
 
-## 4. Verify Configuration
-
-### 4.1 Test Tables
-
-Run in SQL Editor:
+### 6.2 `register_account`
 
 ```sql
--- Test mosque_settings
-SELECT * FROM mosque_settings;
+CREATE OR REPLACE FUNCTION register_account(
+    p_username TEXT,
+    p_password TEXT,
+    p_device_id TEXT,
+    p_device_label TEXT
+) RETURNS JSON
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_account_id UUID;
+    v_token TEXT;
+BEGIN
+    IF EXISTS (SELECT 1 FROM accounts WHERE username = p_username) THEN
+        RAISE EXCEPTION 'USERNAME_TAKEN';
+    END IF;
 
--- Test mosque_images (should be empty initially)
-SELECT * FROM mosque_images;
+    INSERT INTO accounts (username, password_hash)
+    VALUES (p_username, crypt(p_password, gen_salt('bf')))
+    RETURNING id INTO v_account_id;
+
+    INSERT INTO device_sessions (account_id, device_identifier, device_label)
+    VALUES (v_account_id, p_device_id, p_device_label)
+    RETURNING session_token INTO v_token;
+
+    -- Create default settings row for this account
+    INSERT INTO mosque_settings (account_id) VALUES (v_account_id)
+    ON CONFLICT (account_id) DO NOTHING;
+
+    RETURN json_build_object('session_token', v_token);
+END; $$;
 ```
 
-### 4.2 Test Storage
-
-1. Go to Storage > mosque-images
-2. Try uploading a test image
-3. Verify you can access the public URL
-
-## 5. Update Android App Configuration
-
-### 5.1 Get Credentials
-
-1. Go to Project Settings > API
-2. Copy **Project URL** (e.g., `https://xxxxx.supabase.co`)
-3. Copy **anon public** key
-
-### 5.2 Update SupabaseClient.kt
-
-Update the credentials in `/app/src/main/java/com/example/baiturrahman/data/remote/SupabaseClient.kt`:
-
-```kotlin
-private const val SUPABASE_URL = "YOUR_PROJECT_URL_HERE"
-private const val SUPABASE_ANON_KEY = "YOUR_ANON_KEY_HERE"
-```
-
-## 6. Useful SQL Queries
-
-### View all images with status
+### 6.3 `login_account`
 
 ```sql
-SELECT id, image_uri, display_order, upload_status, upload_date
-FROM mosque_images
-ORDER BY display_order;
+CREATE OR REPLACE FUNCTION login_account(
+    p_username TEXT,
+    p_password TEXT,
+    p_device_id TEXT,
+    p_device_label TEXT
+) RETURNS JSON
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_account_id UUID;
+    v_password_hash TEXT;
+    v_token TEXT;
+    v_session_id UUID;
+BEGIN
+    SELECT id, password_hash INTO v_account_id, v_password_hash
+    FROM accounts WHERE username = p_username;
+
+    IF v_account_id IS NULL THEN
+        RAISE EXCEPTION 'INVALID_CREDENTIALS';
+    END IF;
+
+    IF crypt(p_password, v_password_hash) != v_password_hash THEN
+        RAISE EXCEPTION 'INVALID_CREDENTIALS';
+    END IF;
+
+    UPDATE accounts SET last_active_at = NOW() WHERE id = v_account_id;
+
+    -- Reuse existing session for this device if present
+    SELECT id INTO v_session_id
+    FROM device_sessions
+    WHERE account_id = v_account_id AND device_identifier = p_device_id;
+
+    IF v_session_id IS NOT NULL THEN
+        UPDATE device_sessions
+        SET last_seen_at = NOW(), device_label = p_device_label
+        WHERE id = v_session_id
+        RETURNING session_token INTO v_token;
+    ELSE
+        INSERT INTO device_sessions (account_id, device_identifier, device_label)
+        VALUES (v_account_id, p_device_id, p_device_label)
+        RETURNING session_token INTO v_token;
+    END IF;
+
+    RETURN json_build_object('session_token', v_token);
+END; $$;
 ```
 
-### Count images by status
+### 6.4 `validate_session`
 
 ```sql
-SELECT upload_status, COUNT(*) as count
-FROM mosque_images
-GROUP BY upload_status;
+CREATE OR REPLACE FUNCTION validate_session(p_session_token TEXT)
+RETURNS JSON
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_account_id UUID;
+BEGIN
+    SELECT account_id INTO v_account_id
+    FROM device_sessions WHERE session_token = p_session_token;
+
+    IF v_account_id IS NULL THEN
+        RETURN json_build_object('account_id', NULL);
+    END IF;
+
+    UPDATE device_sessions SET last_seen_at = NOW()
+    WHERE session_token = p_session_token;
+
+    RETURN json_build_object('account_id', v_account_id::TEXT);
+END; $$;
 ```
 
-### View current settings
+### 6.5 `logout_device`
 
 ```sql
-SELECT * FROM mosque_settings;
+CREATE OR REPLACE FUNCTION logout_device(p_session_token TEXT)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    DELETE FROM device_sessions WHERE session_token = p_session_token;
+END; $$;
 ```
 
-### Clear all images (for testing)
+### 6.6 `logout_other_device`
 
 ```sql
-DELETE FROM mosque_images;
+CREATE OR REPLACE FUNCTION logout_other_device(
+    p_session_token TEXT,
+    p_target_session_id UUID
+) RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_account_id UUID;
+BEGIN
+    SELECT account_id INTO v_account_id
+    FROM device_sessions WHERE session_token = p_session_token;
+
+    IF v_account_id IS NULL THEN
+        RAISE EXCEPTION 'INVALID_SESSION';
+    END IF;
+
+    DELETE FROM device_sessions
+    WHERE id = p_target_session_id AND account_id = v_account_id;
+END; $$;
 ```
 
-### Reset settings to default
+### 6.7 `change_password`
 
 ```sql
-UPDATE mosque_settings
-SET
-    mosque_name = 'Masjid Baiturrahman',
-    mosque_location = 'Pondok Pinang',
-    logo_image = NULL,
-    prayer_address = 'Lebak Bulus, Jakarta, ID',
-    prayer_timezone = 'Asia/Jakarta',
-    quote_text = 'Lorem ipsum dolor sit amet',
-    marquee_text = 'Rolling Text'
-WHERE id = 1;
+CREATE OR REPLACE FUNCTION change_password(
+    p_session_token TEXT,
+    p_old_password TEXT,
+    p_new_password TEXT
+) RETURNS JSON
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_account_id UUID;
+    v_password_hash TEXT;
+BEGIN
+    SELECT ds.account_id, a.password_hash
+    INTO v_account_id, v_password_hash
+    FROM device_sessions ds
+    JOIN accounts a ON a.id = ds.account_id
+    WHERE ds.session_token = p_session_token;
+
+    IF v_account_id IS NULL THEN
+        RAISE EXCEPTION 'INVALID_SESSION';
+    END IF;
+
+    IF crypt(p_old_password, v_password_hash) != v_password_hash THEN
+        RETURN json_build_object('success', false, 'error', 'WRONG_PASSWORD');
+    END IF;
+
+    UPDATE accounts
+    SET password_hash = crypt(p_new_password, gen_salt('bf'))
+    WHERE id = v_account_id;
+
+    RETURN json_build_object('success', true);
+END; $$;
 ```
 
-## Important Notes
-
-### Authentication Model
-
-This app uses the **`anon` (anonymous) role** for all database and storage operations:
-- **No user authentication required** - suitable for trusted devices in a controlled mosque environment
-- All devices use the same anonymous key for read/write operations
-- RLS policies are configured to allow `anon` role for INSERT, UPDATE, and DELETE operations
-- This simplifies deployment since no per-device credentials are needed
-
-**Security Considerations:**
-- Devices should be physically secured within the mosque premises
-- The anon key can be restricted to specific IP ranges via Supabase API settings if needed
-- Supabase provides built-in rate limiting to prevent abuse
-- For higher security requirements, authentication can be added later using the Auth module
-
-## 7. Device-Specific Data Migration
-
-If you're upgrading from a version without device-specific data support, run these SQL commands to add the `device_name` column:
-
-### 7.1 Add device_name to mosque_images
+### 6.8 `update_session_last_seen`
 
 ```sql
--- Add device_name column to mosque_images
-ALTER TABLE mosque_images
-ADD COLUMN IF NOT EXISTS device_name TEXT NOT NULL DEFAULT '';
+CREATE OR REPLACE FUNCTION update_session_last_seen(p_session_token TEXT)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    UPDATE device_sessions SET last_seen_at = NOW()
+    WHERE session_token = p_session_token;
 
--- Create index for device_name
-CREATE INDEX IF NOT EXISTS idx_mosque_images_device_name ON mosque_images(device_name);
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'INVALID_SESSION';
+    END IF;
+END; $$;
 ```
 
-### 7.2 Add device_name to mosque_settings
+### 6.9 `get_active_sessions`
 
 ```sql
--- Drop the single-row constraint
-ALTER TABLE mosque_settings DROP CONSTRAINT IF EXISTS single_row_check;
+CREATE OR REPLACE FUNCTION get_active_sessions(p_session_token TEXT)
+RETURNS JSON
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_account_id UUID;
+    v_result JSON;
+BEGIN
+    SELECT account_id INTO v_account_id
+    FROM device_sessions WHERE session_token = p_session_token;
 
--- Add device_name column
-ALTER TABLE mosque_settings
-ADD COLUMN IF NOT EXISTS device_name TEXT NOT NULL DEFAULT '';
+    IF v_account_id IS NULL THEN
+        RAISE EXCEPTION 'INVALID_SESSION';
+    END IF;
 
--- Make device_name unique (each device has its own settings)
-ALTER TABLE mosque_settings
-ADD CONSTRAINT unique_device_name UNIQUE (device_name);
+    SELECT json_agg(row_to_json(r)) INTO v_result
+    FROM (
+        SELECT
+            id,
+            device_label,
+            last_seen_at,
+            (session_token = p_session_token) AS is_current
+        FROM device_sessions
+        WHERE account_id = v_account_id
+        ORDER BY last_seen_at DESC
+    ) r;
 
--- Add upsert policy for settings
-CREATE POLICY "Allow anon insert to mosque_settings"
-ON mosque_settings FOR INSERT
-TO anon
-WITH CHECK (true);
+    RETURN COALESCE(v_result, '[]'::JSON);
+END; $$;
 ```
 
-### 7.3 Understanding Device-Specific Data
+### 6.10 `get_settings_by_token`
 
-- Each device identified by its `device_name` will have its own set of settings and images
-- When you change the "Nama Perangkat" (device name), the app will sync data specific to that device
-- Different devices (TV-1, TV-2, etc.) can have different images and settings
-- If a device name has no data in Supabase, it will start with empty/default values
+```sql
+CREATE OR REPLACE FUNCTION get_settings_by_token(p_session_token TEXT)
+RETURNS JSON
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_account_id UUID;
+    v_result JSON;
+BEGIN
+    SELECT account_id INTO v_account_id
+    FROM device_sessions WHERE session_token = p_session_token;
 
-## Troubleshooting
+    IF v_account_id IS NULL THEN
+        RAISE EXCEPTION 'INVALID_SESSION';
+    END IF;
 
-### RLS Policies Not Working
+    SELECT row_to_json(t) INTO v_result
+    FROM (SELECT * FROM mosque_settings WHERE account_id = v_account_id) t;
 
-- Verify RLS is enabled on tables
-- Check policy names don't conflict
-- Ensure policies use correct roles (`public`, `anon`)
-- Note: The app uses the `anon` role for all operations (no authentication required)
+    RETURN v_result;
+END; $$;
+```
 
-### Storage Upload Fails
+### 6.11 `upsert_settings_by_token`
 
-- Verify bucket is public
-- Check storage policies are created
-- Ensure bucket name matches exactly: `mosque-images`
+```sql
+CREATE OR REPLACE FUNCTION upsert_settings_by_token(
+    p_session_token TEXT,
+    p_mosque_name TEXT,
+    p_mosque_location TEXT,
+    p_logo_image TEXT,
+    p_prayer_address TEXT,
+    p_prayer_timezone TEXT,
+    p_quote_text TEXT,
+    p_marquee_text TEXT
+) RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_account_id UUID;
+BEGIN
+    SELECT account_id INTO v_account_id
+    FROM device_sessions WHERE session_token = p_session_token;
 
-### Can't Query Tables from App
+    IF v_account_id IS NULL THEN
+        RAISE EXCEPTION 'INVALID_SESSION';
+    END IF;
 
-- Verify anon key is correct
-- Check RLS policies allow SELECT for public
-- Ensure PostgREST is enabled in project settings
+    INSERT INTO mosque_settings (
+        account_id, mosque_name, mosque_location, logo_image,
+        prayer_address, prayer_timezone, quote_text, marquee_text
+    )
+    VALUES (
+        v_account_id, p_mosque_name, p_mosque_location, p_logo_image,
+        p_prayer_address, p_prayer_timezone, p_quote_text, p_marquee_text
+    )
+    ON CONFLICT (account_id) DO UPDATE SET
+        mosque_name = EXCLUDED.mosque_name,
+        mosque_location = EXCLUDED.mosque_location,
+        logo_image = EXCLUDED.logo_image,
+        prayer_address = EXCLUDED.prayer_address,
+        prayer_timezone = EXCLUDED.prayer_timezone,
+        quote_text = EXCLUDED.quote_text,
+        marquee_text = EXCLUDED.marquee_text,
+        updated_at = NOW();
+END; $$;
+```
 
-## 6. RPC Functions (Stored Procedures)
+### 6.12 `get_images_by_token`
 
-These PostgreSQL functions provide atomic, transaction-safe operations called via Supabase RPC.
+```sql
+CREATE OR REPLACE FUNCTION get_images_by_token(p_session_token TEXT)
+RETURNS JSON
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_account_id UUID;
+    v_result JSON;
+BEGIN
+    SELECT account_id INTO v_account_id
+    FROM device_sessions WHERE session_token = p_session_token;
 
-### 6.1 `upload_image_atomic` — Single-call image record creation
+    IF v_account_id IS NULL THEN
+        RAISE EXCEPTION 'INVALID_SESSION';
+    END IF;
 
-Replaces the two-step `INSERT` → `UPDATE` pattern. Creates a completed image record in one call.
+    SELECT json_agg(row_to_json(t)) INTO v_result
+    FROM (
+        SELECT * FROM mosque_images
+        WHERE account_id = v_account_id AND upload_status = 'completed'
+        ORDER BY display_order ASC
+    ) t;
+
+    RETURN COALESCE(v_result, '[]'::JSON);
+END; $$;
+```
+
+### 6.13 `upload_image_atomic`
 
 ```sql
 CREATE OR REPLACE FUNCTION upload_image_atomic(
+    p_session_token TEXT,
     p_id UUID,
-    p_device_name TEXT,
     p_display_order INTEGER,
     p_file_size BIGINT,
     p_mime_type TEXT,
     p_image_uri TEXT,
     p_upload_status TEXT DEFAULT 'completed'
 ) RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
+LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
-    result JSON;
+    v_account_id UUID;
+    v_result JSON;
 BEGIN
-    INSERT INTO mosque_images (id, device_name, display_order, file_size, mime_type, image_uri, upload_status)
-    VALUES (p_id, p_device_name, p_display_order, p_file_size, p_mime_type, p_image_uri, p_upload_status)
+    SELECT account_id INTO v_account_id
+    FROM device_sessions WHERE session_token = p_session_token;
+
+    IF v_account_id IS NULL THEN
+        RAISE EXCEPTION 'INVALID_SESSION';
+    END IF;
+
+    INSERT INTO mosque_images (
+        id, account_id, display_order, file_size, mime_type, image_uri, upload_status
+    )
+    VALUES (
+        p_id, v_account_id, p_display_order, p_file_size, p_mime_type, p_image_uri, p_upload_status
+    )
     ON CONFLICT (id) DO UPDATE SET
         image_uri = EXCLUDED.image_uri,
         upload_status = EXCLUDED.upload_status,
         file_size = EXCLUDED.file_size,
         updated_at = NOW();
 
-    SELECT row_to_json(t) INTO result
+    SELECT row_to_json(t) INTO v_result
     FROM (SELECT * FROM mosque_images WHERE id = p_id) t;
 
-    RETURN result;
-END;
-$$;
+    RETURN v_result;
+END; $$;
 ```
 
-### 6.2 `delete_image_and_reorder` — Atomic delete + reorder
-
-Deletes an image and reorders the remaining images for the device in a single transaction.
+### 6.14 `delete_image_and_reorder`
 
 ```sql
 CREATE OR REPLACE FUNCTION delete_image_and_reorder(
-    p_image_id UUID,
-    p_device_name TEXT
+    p_session_token TEXT,
+    p_image_id UUID
 ) RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
+LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
+    v_account_id UUID;
     img RECORD;
     new_order INTEGER := 0;
-    result JSON;
+    v_result JSON;
 BEGIN
-    DELETE FROM mosque_images WHERE id = p_image_id;
+    SELECT account_id INTO v_account_id
+    FROM device_sessions WHERE session_token = p_session_token;
+
+    IF v_account_id IS NULL THEN
+        RAISE EXCEPTION 'INVALID_SESSION';
+    END IF;
+
+    DELETE FROM mosque_images WHERE id = p_image_id AND account_id = v_account_id;
 
     FOR img IN
         SELECT id FROM mosque_images
-        WHERE device_name = p_device_name AND upload_status = 'completed'
+        WHERE account_id = v_account_id AND upload_status = 'completed'
         ORDER BY display_order ASC
     LOOP
         UPDATE mosque_images SET display_order = new_order WHERE id = img.id;
         new_order := new_order + 1;
     END LOOP;
 
-    SELECT json_agg(row_to_json(t)) INTO result
+    SELECT json_agg(row_to_json(t)) INTO v_result
     FROM (
         SELECT * FROM mosque_images
-        WHERE device_name = p_device_name AND upload_status = 'completed'
+        WHERE account_id = v_account_id AND upload_status = 'completed'
         ORDER BY display_order ASC
     ) t;
 
-    RETURN COALESCE(result, '[]'::JSON);
-END;
-$$;
-```
-
-### 6.3 `batch_upsert_images` — Batch migration
-
-Upserts multiple images in a single transaction. Idempotent via `ON CONFLICT ... DO UPDATE`.
-
-```sql
-CREATE OR REPLACE FUNCTION batch_upsert_images(p_images JSON)
-RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    img JSON;
-    result_count INTEGER := 0;
-BEGIN
-    FOR img IN SELECT * FROM json_array_elements(p_images) LOOP
-        INSERT INTO mosque_images (id, device_name, display_order, file_size, mime_type, image_uri, upload_status)
-        VALUES (
-            (img->>'id')::UUID,
-            img->>'device_name',
-            (img->>'display_order')::INTEGER,
-            (img->>'file_size')::BIGINT,
-            COALESCE(img->>'mime_type', 'image/jpeg'),
-            img->>'image_uri',
-            COALESCE(img->>'upload_status', 'completed')
-        )
-        ON CONFLICT (id) DO UPDATE SET
-            image_uri = EXCLUDED.image_uri,
-            upload_status = EXCLUDED.upload_status,
-            updated_at = NOW();
-        result_count := result_count + 1;
-    END LOOP;
-
-    RETURN json_build_object('upserted', result_count);
-END;
-$$;
-```
-
-### 6.4 `rename_device` — Atomic device rename across tables
-
-Renames a device in both `mosque_settings` and `mosque_images` in a single transaction. Called when the user changes the device name in admin settings.
-
-```sql
-CREATE OR REPLACE FUNCTION rename_device(p_old_name TEXT, p_new_name TEXT)
-RETURNS JSON LANGUAGE plpgsql SECURITY DEFINER AS $$
-DECLARE settings_count INT; images_count INT;
-BEGIN
-    UPDATE mosque_settings SET device_name = p_new_name WHERE device_name = p_old_name;
-    GET DIAGNOSTICS settings_count = ROW_COUNT;
-    UPDATE mosque_images SET device_name = p_new_name WHERE device_name = p_old_name;
-    GET DIAGNOSTICS images_count = ROW_COUNT;
-    RETURN json_build_object('settings_renamed', settings_count, 'images_renamed', images_count);
+    RETURN COALESCE(v_result, '[]'::JSON);
 END; $$;
 ```
 
-### 6.5 Grant Permissions
+---
 
-After creating the functions, grant execute permission to the `anon` role:
+## 7. Grant Execute Permissions
+
+> Full argument lists are required to disambiguate from any old function versions with the same name.
 
 ```sql
-GRANT EXECUTE ON FUNCTION upload_image_atomic TO anon;
-GRANT EXECUTE ON FUNCTION delete_image_and_reorder TO anon;
-GRANT EXECUTE ON FUNCTION batch_upsert_images TO anon;
-GRANT EXECUTE ON FUNCTION rename_device TO anon;
+GRANT EXECUTE ON FUNCTION check_username_available(TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION register_account(TEXT, TEXT, TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION login_account(TEXT, TEXT, TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION validate_session(TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION logout_device(TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION logout_other_device(TEXT, UUID) TO anon;
+GRANT EXECUTE ON FUNCTION change_password(TEXT, TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION update_session_last_seen(TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION get_active_sessions(TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION get_settings_by_token(TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION upsert_settings_by_token(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION get_images_by_token(TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION upload_image_atomic(TEXT, UUID, INTEGER, BIGINT, TEXT, TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION delete_image_and_reorder(TEXT, UUID) TO anon;
 ```
 
-## Next Steps
+---
 
-After completing this setup:
+## 8. Update Android App Credentials
 
-1. Update `SupabaseClient.kt` with your credentials
-2. Deploy the RPC functions via SQL Editor (Section 6)
-3. Run the Android app
-4. Test image upload from admin dashboard
-5. Verify images appear in PostgreSQL table
-6. Test sync between devices
+Update `SupabaseClient.kt` with your Supabase project URL and anon key.
+
+---
+
+## 9. Auth Flow Summary
+
+```
+App Start
+  ├─ Has sessionToken in prefs?
+  │       NO  → LoginScreen
+  │       YES → validate_session(token)
+  │                 NULL  → clear prefs → LoginScreen
+  │                 valid → MosqueDashboard (sync starts)
+  │
+LoginScreen
+  ├─ "Masuk" → login_account(u, p, deviceId, deviceLabel)
+  │                 success → save token → MosqueDashboard
+  │                 fail    → snackbar error
+  └─ "Daftar" → RegisterScreen
+
+RegisterScreen
+  ├─ On blur: check_username_available(u) → show ✓/✗
+  ├─ "Daftar" → register_account(u, p, deviceId, deviceLabel)
+  │                 success → save token → MosqueDashboard
+  └─ "Masuk" → LoginScreen
+
+Sync (every 10s)
+  1. update_session_last_seen(token)   ← heartbeat / force-logout detection
+  2. get_settings_by_token(token)      ← pull settings
+  3. get_images_by_token(token)        ← pull images
+
+Logout
+  └─ logout_device(token) → clear prefs → LoginScreen
+```
+
+---
+
+## 10. Useful SQL Queries
+
+```sql
+-- View all accounts
+SELECT id, username, created_at, last_active_at FROM accounts;
+
+-- View active sessions
+SELECT ds.id, a.username, ds.device_label, ds.last_seen_at
+FROM device_sessions ds
+JOIN accounts a ON a.id = ds.account_id
+ORDER BY ds.last_seen_at DESC;
+
+-- View settings per account
+SELECT a.username, ms.*
+FROM mosque_settings ms
+JOIN accounts a ON a.id = ms.account_id;
+
+-- View images per account
+SELECT a.username, mi.id, mi.display_order, mi.upload_status
+FROM mosque_images mi
+JOIN accounts a ON a.id = mi.account_id
+ORDER BY a.username, mi.display_order;
+
+-- Reset (clear all sessions — forces all devices to re-login)
+DELETE FROM device_sessions;
+
+-- Remove a specific account and all its data
+DELETE FROM accounts WHERE username = 'test_user';
+```

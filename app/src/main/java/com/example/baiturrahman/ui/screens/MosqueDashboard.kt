@@ -18,17 +18,18 @@ import com.example.baiturrahman.ui.components.*
 import com.example.baiturrahman.ui.theme.DarkBackground
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.GlassWhite
+import com.example.baiturrahman.ui.viewmodel.AuthViewModel
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun MosqueDashboard(
-    viewModel: MosqueDashboardViewModel = koinViewModel()
+    viewModel: MosqueDashboardViewModel = koinViewModel(),
+    authViewModel: AuthViewModel = koinViewModel()
 ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
     val screenHeight = configuration.screenHeightDp
-
     val isMobile = screenWidth < 600 || screenHeight > screenWidth
 
     val uiState by viewModel.uiState.collectAsState()
@@ -36,51 +37,30 @@ fun MosqueDashboard(
     val mosqueImages by viewModel.mosqueImages.collectAsState()
     val currentImageIndex by viewModel.currentImageIndex.collectAsState()
 
-    // Fade-in on initial load
     var contentVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { contentVisible = true }
 
     if (showAdminDashboard) {
         AdminDashboard(
             viewModel = viewModel,
+            authViewModel = authViewModel,
             onClose = { showAdminDashboard = false }
         )
     } else {
         Box(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
-            AnimatedVisibility(
-                visible = contentVisible,
-                enter = fadeIn()
-            ) {
+            AnimatedVisibility(visible = contentVisible, enter = fadeIn()) {
                 if (isMobile) {
-                    // Mobile Layout
                     Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(DarkBackground)
+                        modifier = Modifier.fillMaxSize().background(DarkBackground)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                        ) {
+                        Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
                             Header()
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
+                            Spacer(Modifier.height(8.dp))
                             CurrentTimeDisplay(uiState.prayerData)
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
+                            Spacer(Modifier.height(8.dp))
                             CurrentDateDisplay(uiState.prayerData)
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Image Slider
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(0.4f)
-                            ) {
+                            Spacer(Modifier.height(8.dp))
+                            Box(modifier = Modifier.fillMaxWidth().weight(0.4f)) {
                                 ImageSlider(
                                     images = mosqueImages,
                                     currentIndex = currentImageIndex,
@@ -88,69 +68,35 @@ fun MosqueDashboard(
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Quote Box
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(100.dp)
-                            ) {
+                            Spacer(Modifier.height(8.dp))
+                            Box(modifier = Modifier.fillMaxWidth().height(100.dp)) {
                                 val quote by viewModel.quoteText.collectAsState()
                                 QuoteBox(quote = quote)
                             }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Prayer Times Grid
-                            Box(
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                PrayerTimesGrid(
-                                    timings = uiState.prayerData?.timings,
-                                    isMobile = true
-                                )
+                            Spacer(Modifier.height(8.dp))
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                PrayerTimesGrid(timings = uiState.prayerData?.timings, isMobile = true)
                             }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Countdown
+                            Spacer(Modifier.height(8.dp))
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 4.dp),
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                NextPrayerCountdown(
-                                    timings = uiState.prayerData?.timings
-                                )
+                                NextPrayerCountdown(timings = uiState.prayerData?.timings)
                             }
                         }
-
-                        // MarqueeText pinned to bottom
                         Box(modifier = Modifier.fillMaxWidth()) {
                             val text by viewModel.marqueeText.collectAsState()
                             MarqueeText(text = text)
                         }
                     }
                 } else {
-                    // TV/Tablet Layout - Box for countdown overlay, Column for flow layout
                     Box(modifier = Modifier.fillMaxSize()) {
-                        // Main flow layout: image+info row, then grid, then marquee
                         Column(modifier = Modifier.fillMaxSize()) {
                             Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                                    .background(DarkBackground)
+                                modifier = Modifier.weight(1f).fillMaxWidth().background(DarkBackground)
                             ) {
-                                // Left side - Image Slider
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                ) {
+                                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                                     ImageSlider(
                                         images = mosqueImages,
                                         currentIndex = currentImageIndex,
@@ -158,44 +104,29 @@ fun MosqueDashboard(
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
-
-                                // Right side - Clock & Mosque Info
-                                Box(
-                                    modifier = Modifier
-                                        .weight(0.5f)
-                                        .fillMaxHeight()
-                                ) {
+                                Box(modifier = Modifier.weight(0.5f).fillMaxHeight()) {
                                     Column(
                                         modifier = Modifier.fillMaxSize(),
                                         verticalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Column {
-                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Spacer(Modifier.height(8.dp))
                                             Header()
-                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Spacer(Modifier.height(12.dp))
                                             CurrentTimeDisplay(uiState.prayerData)
-                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Spacer(Modifier.height(8.dp))
                                             CurrentDateDisplay(uiState.prayerData)
-                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Spacer(Modifier.height(12.dp))
                                             val quote by viewModel.quoteText.collectAsState()
                                             QuoteBox(quote = quote)
                                         }
                                     }
                                 }
                             }
-
-                            // Prayer Times Grid - flows below the image+info row
-                            PrayerTimesGrid(
-                                timings = uiState.prayerData?.timings,
-                                isMobile = false
-                            )
-
-                            // MarqueeText at the very bottom
+                            PrayerTimesGrid(timings = uiState.prayerData?.timings, isMobile = false)
                             val text by viewModel.marqueeText.collectAsState()
                             MarqueeText(text = text)
                         }
-
-                        // Countdown overlay - centered over the image area
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
@@ -203,9 +134,7 @@ fun MosqueDashboard(
                                 .padding(bottom = 130.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            NextPrayerCountdown(
-                                timings = uiState.prayerData?.timings
-                            )
+                            NextPrayerCountdown(timings = uiState.prayerData?.timings)
                         }
                     }
                 }
