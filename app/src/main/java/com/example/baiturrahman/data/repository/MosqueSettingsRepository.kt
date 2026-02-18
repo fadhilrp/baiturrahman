@@ -97,6 +97,13 @@ class MosqueSettingsRepository(
     }
 
     /**
+     * Fetch all device names from remote Supabase.
+     */
+    suspend fun getAllDeviceNames(): List<String> {
+        return postgresRepository.getAllDeviceNames()
+    }
+
+    /**
      * Rename device atomically in remote PostgreSQL (both tables).
      */
     suspend fun renameDevice(oldName: String, newName: String): Boolean {

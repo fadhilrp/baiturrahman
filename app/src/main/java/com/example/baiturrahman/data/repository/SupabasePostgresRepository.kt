@@ -12,6 +12,8 @@ import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -20,6 +22,11 @@ import kotlinx.serialization.json.put
  * Repository for Supabase PostgreSQL operations
  * Handles all database CRUD operations for mosque images and settings
  */
+@Serializable
+private data class DeviceNameRow(
+    @SerialName("device_name") val deviceName: String
+)
+
 class SupabasePostgresRepository {
     private val TAG = "SupabasePostgresRepo"
     private val client = SupabaseClient.client
@@ -349,6 +356,23 @@ class SupabasePostgresRepository {
         } catch (e: Exception) {
             Log.e(TAG, "❌ rename_device RPC failed", e)
             false
+        }
+    }
+
+    /**
+     * Fetch all distinct device names from mosque_settings
+     */
+    suspend fun getAllDeviceNames(): List<String> {
+        return try {
+            val response = client.from(SETTINGS_TABLE)
+                .select(columns = Columns.list("device_name")) {
+                    order(column = "device_name", order = Order.ASCENDING)
+                }
+                .decodeList<DeviceNameRow>()
+            response.map { it.deviceName }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch device names", e)
+            emptyList()
         }
     }
 
