@@ -1,6 +1,8 @@
 package com.example.baiturrahman.ui.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,13 +18,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.baiturrahman.R
-import com.example.baiturrahman.ui.theme.TextPrimary
-import com.example.baiturrahman.ui.theme.TextSecondary
+import com.example.baiturrahman.ui.theme.Border
+import com.example.baiturrahman.ui.theme.Foreground
+import com.example.baiturrahman.ui.theme.MutedForeground
+import com.example.baiturrahman.ui.theme.Secondary
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -37,54 +44,57 @@ fun Header(
     val mosqueLocation by viewModel.mosqueLocation.collectAsState()
     val logoImage by viewModel.logoImage.collectAsState()
 
-    val logoSize = if (isMobile) 48.dp else 64.dp
-    val padding = if (isMobile) 8.dp else 15.dp
-    val spacerWidth = if (isMobile) 8.dp else 16.dp
+    val logoSize = if (isMobile) 44.dp else 56.dp
+    val shape = RoundedCornerShape(12.dp)
 
-    GlassCard(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = padding, vertical = padding / 2),
-        cornerRadius = 12.dp
+            .clip(shape)
+            .background(Secondary.copy(alpha = 0.7f), shape)
+            .border(1.dp, Border.copy(alpha = 0.5f), shape)
+            .padding(horizontal = if (isMobile) 12.dp else 16.dp, vertical = if (isMobile) 10.dp else 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(padding),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (logoImage != null) {
-                SupabaseImage(
-                    imageUrl = logoImage,
-                    contentDescription = "Mosque Logo",
-                    modifier = Modifier.size(logoSize),
-                    fallbackResourceId = R.drawable.logo2
-                )
-            } else {
-                Image(
-                    painter = painterResource(id = R.drawable.logo2),
-                    contentDescription = "Logo Masjid",
-                    modifier = Modifier.size(logoSize)
-                )
-            }
+        // Logo
+        val logoShape = RoundedCornerShape(8.dp)
+        if (logoImage != null) {
+            SupabaseImage(
+                imageUrl = logoImage,
+                contentDescription = "Mosque Logo",
+                modifier = Modifier
+                    .size(logoSize)
+                    .clip(logoShape)
+                    .background(Foreground.copy(alpha = 0.9f), logoShape),
+                fallbackResourceId = R.drawable.logo2
+            )
+        } else {
+            Image(
+                painter = painterResource(id = R.drawable.logo2),
+                contentDescription = "Logo Masjid",
+                modifier = Modifier
+                    .size(logoSize)
+                    .clip(logoShape)
+                    .background(Foreground.copy(alpha = 0.9f), logoShape)
+            )
+        }
 
-            Spacer(modifier = Modifier.width(spacerWidth))
+        Spacer(modifier = Modifier.width(if (isMobile) 10.dp else 16.dp))
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = mosqueName,
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = TextPrimary
-                )
-                Text(
-                    text = mosqueLocation,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextSecondary
-                )
-            }
+        Column {
+            Text(
+                text = mosqueName,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontSize = if (isMobile) 18.sp else 22.sp,
+                    fontWeight = FontWeight.Bold,
+                ),
+                color = Foreground
+            )
+            Text(
+                text = mosqueLocation,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MutedForeground
+            )
         }
     }
 }

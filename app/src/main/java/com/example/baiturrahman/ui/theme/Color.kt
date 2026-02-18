@@ -3,10 +3,18 @@ package com.example.baiturrahman.ui.theme
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
-// === Backgrounds ===
-val DarkBackground = Color(0xFF0F172A)
+// === Backgrounds (matched to web: HSL 220 40% 7%) ===
+val DarkBackground = Color(0xFF0F1820)
 val DarkSurface = Color(0xFF1E293B)
 val DarkSurfaceVariant = Color(0xFF334155)
+
+// === Web design tokens ===
+val CardBackground = Color(0xFF172030)   // HSL 220 35% 10%
+val Secondary = Color(0xFF1A2332)        // HSL 220 30% 15%
+val Border = Color(0xFF2A3548)           // HSL 220 25% 18%
+val MutedForeground = Color(0xFF7A8A9E)  // HSL 215 15% 55%
+val Foreground = Color(0xFFF0F4F8)       // HSL 210 40% 96%
+val SecondaryForeground = Color(0xFFDDE4ED)  // HSL 210 40% 90%
 
 // === Glassmorphism ===
 val GlassWhite = Color(0x1AFFFFFF)      // 10% white
@@ -17,6 +25,13 @@ val EmeraldGreen = Color(0xFF34D399)
 val EmeraldLight = Color(0xFF6EE7B7)
 val EmeraldDark = Color(0xFF059669)
 val EmeraldMuted = Color(0x3334D399)    // 20% emerald
+
+// === Glow utility colors ===
+val EmeraldGlow40 = Color(0x6634D399)   // 40% alpha
+val EmeraldGlow15 = Color(0x2634D399)   // 15% alpha
+val EmeraldGlow20 = Color(0x3334D399)   // 20% alpha
+val ActivePrayerBg = Color(0x2634D399)  // 15% alpha for active prayer
+val NextPrayerBg = Secondary            // solid secondary
 
 // === Secondary Accent — Gold ===
 val GoldAccent = Color(0xFFFBBF24)

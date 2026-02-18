@@ -3,10 +3,8 @@ package com.example.baiturrahman.ui.components
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,15 +16,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.baiturrahman.data.model.PrayerData
-import com.example.baiturrahman.ui.theme.DarkSurface
 import com.example.baiturrahman.ui.theme.EmeraldGreen
-import com.example.baiturrahman.ui.theme.EmeraldLight
-import com.example.baiturrahman.ui.theme.TextSecondary
+import com.example.baiturrahman.ui.theme.TextPrimary
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -36,9 +34,6 @@ fun CurrentDateDisplay(prayerData: PrayerData?) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
     val isMobile = screenWidth < 600
-
-    val verticalPadding = if (isMobile) 10.dp else 8.dp
-    val dividerWidth = if (isMobile) 150.dp else 250.dp
 
     val dateFormat = SimpleDateFormat("EEEE, d MMMM yyyy", Locale("id"))
     var dateString by remember { mutableStateOf(dateFormat.format(Date())) }
@@ -80,43 +75,36 @@ fun CurrentDateDisplay(prayerData: PrayerData?) {
     }
 
     val hijriDateText = if (hijriDay.isNotEmpty() && hijriMonth.isNotEmpty() && hijriYear.isNotEmpty()) {
-        "$hijriDay $formattedMonth $hijriYear"
+        "$hijriDay $formattedMonth $hijriYear H"
     } else {
         "- - -"
     }
 
-    GlassCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp),
-        cornerRadius = 8.dp,
-        backgroundColor = DarkSurface
+    val textSize = if (isMobile) 14.sp else 18.sp
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = verticalPadding),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = dateString,
-                style = if (isMobile) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
-                color = EmeraldLight,
-            )
+        Text(
+            text = dateString,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = textSize,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 1.sp
+            ),
+            color = TextPrimary.copy(alpha = 0.9f),
+        )
 
-            HorizontalDivider(
-                modifier = Modifier
-                    .padding(vertical = 4.dp)
-                    .width(dividerWidth),
-                thickness = 1.dp,
-                color = EmeraldGreen.copy(alpha = 0.5f)
-            )
+        Spacer(modifier = Modifier.height(4.dp))
 
-            Text(
-                text = hijriDateText,
-                style = if (isMobile) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
-                color = TextSecondary,
-            )
-        }
+        Text(
+            text = hijriDateText,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = textSize,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 1.sp
+            ),
+            color = EmeraldGreen,
+        )
     }
 }
