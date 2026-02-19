@@ -87,14 +87,16 @@ class SupabasePostgresRepository {
     }
 
     /**
-     * Validate session token. Returns account_id if valid, null if invalid/expired.
+     * Validate session token. Returns (account_id, username) if valid, null if invalid/expired.
      */
-    suspend fun validateSession(token: String): String? {
+    suspend fun validateSession(token: String): Pair<String, String>? {
         return try {
             val params = buildJsonObject { put("p_session_token", token) }
             val result = client.postgrest.rpc("validate_session", params)
                 .decodeAs<JsonObject>()
-            result["account_id"]?.jsonPrimitive?.contentOrNull
+            val accountId = result["account_id"]?.jsonPrimitive?.contentOrNull ?: return null
+            val username = result["username"]?.jsonPrimitive?.contentOrNull ?: return null
+            accountId to username
         } catch (e: Exception) {
             Log.e(TAG, "validateSession failed: ${e.message}")
             null

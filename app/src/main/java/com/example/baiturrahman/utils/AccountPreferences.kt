@@ -19,11 +19,22 @@ class AccountPreferences(context: Context) {
         private const val KEY_ACCOUNT_ID = "account_id"
         private const val KEY_DEVICE_IDENTIFIER = "device_identifier"
         private const val KEY_DEVICE_LABEL = "device_label"
+        private const val KEY_USERNAME = "username"
     }
 
     // Reactive session token flow — AuthViewModel observes this to update isLoggedIn
     private val _sessionTokenFlow = MutableStateFlow(prefs.getString(KEY_SESSION_TOKEN, null))
     val sessionTokenFlow: StateFlow<String?> = _sessionTokenFlow.asStateFlow()
+
+    private val _usernameFlow = MutableStateFlow(prefs.getString(KEY_USERNAME, null))
+    val usernameFlow: StateFlow<String?> = _usernameFlow.asStateFlow()
+
+    var username: String?
+        get() = prefs.getString(KEY_USERNAME, null)
+        set(value) {
+            prefs.edit { putString(KEY_USERNAME, value) }
+            _usernameFlow.value = value
+        }
 
     var sessionToken: String?
         get() = prefs.getString(KEY_SESSION_TOKEN, null)
@@ -62,8 +73,10 @@ class AccountPreferences(context: Context) {
         prefs.edit {
             remove(KEY_SESSION_TOKEN)
             remove(KEY_ACCOUNT_ID)
+            remove(KEY_USERNAME)
         }
         _sessionTokenFlow.value = null
+        _usernameFlow.value = null
     }
 
     fun isLoggedIn(): Boolean = prefs.getString(KEY_SESSION_TOKEN, null) != null

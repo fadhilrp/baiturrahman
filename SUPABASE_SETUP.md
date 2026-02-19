@@ -240,9 +240,12 @@ RETURNS JSON
 LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
     v_account_id UUID;
+    v_username TEXT;
 BEGIN
-    SELECT account_id INTO v_account_id
-    FROM device_sessions WHERE session_token = p_session_token;
+    SELECT ds.account_id, a.username INTO v_account_id, v_username
+    FROM device_sessions ds
+    JOIN accounts a ON a.id = ds.account_id
+    WHERE ds.session_token = p_session_token;
 
     IF v_account_id IS NULL THEN
         RETURN json_build_object('account_id', NULL);
@@ -251,7 +254,7 @@ BEGIN
     UPDATE device_sessions SET last_seen_at = NOW()
     WHERE session_token = p_session_token;
 
-    RETURN json_build_object('account_id', v_account_id::TEXT);
+    RETURN json_build_object('account_id', v_account_id::TEXT, 'username', v_username);
 END; $$;
 ```
 

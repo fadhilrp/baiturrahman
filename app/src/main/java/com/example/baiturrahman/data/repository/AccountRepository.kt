@@ -28,6 +28,7 @@ class AccountRepository(
             ) ?: return "Gagal mendaftar — token tidak diterima"
 
             accountPreferences.sessionToken = token
+            accountPreferences.username = username
             Log.d(TAG, "register succeeded, token saved")
             null
         } catch (e: Exception) {
@@ -54,6 +55,7 @@ class AccountRepository(
             ) ?: return "Gagal masuk — token tidak diterima"
 
             accountPreferences.sessionToken = token
+            accountPreferences.username = username
             Log.d(TAG, "login succeeded, token saved")
             null
         } catch (e: Exception) {
@@ -84,9 +86,11 @@ class AccountRepository(
      */
     suspend fun validateAndClearIfInvalid(): Boolean {
         val token = accountPreferences.sessionToken ?: return false
-        val accountId = postgresRepository.validateSession(token)
-        return if (accountId != null) {
+        val result = postgresRepository.validateSession(token)
+        return if (result != null) {
+            val (accountId, username) = result
             accountPreferences.accountId = accountId
+            accountPreferences.username = username
             true
         } else {
             Log.w(TAG, "Session invalid — clearing prefs")

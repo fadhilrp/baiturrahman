@@ -22,6 +22,8 @@ class AuthViewModel(
         .map { it != null }
         .stateIn(viewModelScope, SharingStarted.Eagerly, accountPreferences.isLoggedIn())
 
+    val currentUsername: StateFlow<String?> = accountPreferences.usernameFlow
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 

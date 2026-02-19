@@ -118,8 +118,10 @@ fun AdminDashboard(
     val isDeletingImage by viewModel.isDeletingImage.collectAsState()
     val isOffline by viewModel.isOffline.collectAsState()
     val connectedDevices by viewModel.connectedDevices.collectAsState()
+    val currentUsername: String? by authViewModel.currentUsername.collectAsState()
 
     // Change password state
+    var showChangePassword by remember { mutableStateOf(false) }
     var oldPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmNewPassword by remember { mutableStateOf("") }
@@ -179,9 +181,25 @@ fun AdminDashboard(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text("Dashboard Admin") },
+                    title = {
+                        if (showChangePassword) {
+                            Text("Ubah Kata Sandi")
+                        } else {
+                            Column {
+                                Text("Dashboard Admin")
+                                if (currentUsername != null) {
+                                    Text(
+                                        text = currentUsername!!,
+                                        fontSize = 12.sp,
+                                        color = TextSecondary,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+                    },
                     navigationIcon = {
-                        IconButton(onClick = onClose) {
+                        IconButton(onClick = { if (showChangePassword) showChangePassword = false else onClose() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
                         }
                     },
@@ -212,7 +230,108 @@ fun AdminDashboard(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        Column(
+        if (showChangePassword) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                OutlinedTextField(
+                    value = oldPassword,
+                    onValueChange = { oldPassword = it },
+                    label = { Text("Kata Sandi Saat Ini") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = textFieldColors,
+                    singleLine = true,
+                    visualTransformation = if (oldPasswordVisible) VisualTransformation.None
+                                          else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { oldPasswordVisible = !oldPasswordVisible }) {
+                            Icon(
+                                if (oldPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = null, tint = TextSecondary
+                            )
+                        }
+                    }
+                )
+
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    label = { Text("Kata Sandi Baru (min. 6 karakter)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = textFieldColors,
+                    singleLine = true,
+                    visualTransformation = if (newPasswordVisible) VisualTransformation.None
+                                          else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
+                            Icon(
+                                if (newPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = null, tint = TextSecondary
+                            )
+                        }
+                    }
+                )
+
+                OutlinedTextField(
+                    value = confirmNewPassword,
+                    onValueChange = { confirmNewPassword = it },
+                    label = { Text("Konfirmasi Kata Sandi Baru") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = textFieldColors,
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    isError = confirmNewPassword.isNotBlank() && newPassword != confirmNewPassword,
+                    supportingText = {
+                        if (confirmNewPassword.isNotBlank() && newPassword != confirmNewPassword) {
+                            Text("Kata sandi tidak cocok", color = Color.Red, fontSize = 12.sp)
+                        }
+                    }
+                )
+
+                Button(
+                    onClick = {
+                        scope.launch {
+                            isChangingPassword = true
+                            try {
+                                val error = viewModel.changePassword(oldPassword, newPassword)
+                                if (error == null) {
+                                    snackbarHostState.showSnackbar("Kata sandi berhasil diubah")
+                                    oldPassword = ""
+                                    newPassword = ""
+                                    confirmNewPassword = ""
+                                    showChangePassword = false
+                                } else {
+                                    snackbarHostState.showSnackbar(error)
+                                }
+                            } finally {
+                                isChangingPassword = false
+                            }
+                        }
+                    },
+                    enabled = !isChangingPassword && oldPassword.isNotBlank() &&
+                        newPassword.length >= 6 && newPassword == confirmNewPassword,
+                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (isChangingPassword) {
+                        CircularProgressIndicator(Modifier.size(18.dp), Color.White, 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Menyimpan...")
+                    } else {
+                        Text("Simpan Kata Sandi Baru")
+                    }
+                }
+            }
+        } else Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -561,100 +680,16 @@ fun AdminDashboard(
                 }
             }
 
-            // Change Password Section
-            AdminSection(title = "Ubah Kata Sandi") {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = oldPassword,
-                        onValueChange = { oldPassword = it },
-                        label = { Text("Kata Sandi Saat Ini") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = textFieldColors,
-                        singleLine = true,
-                        visualTransformation = if (oldPasswordVisible) VisualTransformation.None
-                                              else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        trailingIcon = {
-                            IconButton(onClick = { oldPasswordVisible = !oldPasswordVisible }) {
-                                Icon(
-                                    if (oldPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = null, tint = TextSecondary
-                                )
-                            }
-                        }
-                    )
-
-                    OutlinedTextField(
-                        value = newPassword,
-                        onValueChange = { newPassword = it },
-                        label = { Text("Kata Sandi Baru (min. 6 karakter)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = textFieldColors,
-                        singleLine = true,
-                        visualTransformation = if (newPasswordVisible) VisualTransformation.None
-                                              else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        trailingIcon = {
-                            IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
-                                Icon(
-                                    if (newPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = null, tint = TextSecondary
-                                )
-                            }
-                        }
-                    )
-
-                    OutlinedTextField(
-                        value = confirmNewPassword,
-                        onValueChange = { confirmNewPassword = it },
-                        label = { Text("Konfirmasi Kata Sandi Baru") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = textFieldColors,
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        isError = confirmNewPassword.isNotBlank() && newPassword != confirmNewPassword,
-                        supportingText = {
-                            if (confirmNewPassword.isNotBlank() && newPassword != confirmNewPassword) {
-                                Text("Kata sandi tidak cocok", color = Color.Red, fontSize = 12.sp)
-                            }
-                        }
-                    )
-
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                isChangingPassword = true
-                                try {
-                                    val error = viewModel.changePassword(oldPassword, newPassword)
-                                    if (error == null) {
-                                        snackbarHostState.showSnackbar("Kata sandi berhasil diubah")
-                                        oldPassword = ""
-                                        newPassword = ""
-                                        confirmNewPassword = ""
-                                    } else {
-                                        snackbarHostState.showSnackbar(error)
-                                    }
-                                } finally {
-                                    isChangingPassword = false
-                                }
-                            }
-                        },
-                        enabled = !isChangingPassword && oldPassword.isNotBlank() &&
-                            newPassword.length >= 6 && newPassword == confirmNewPassword,
-                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (isChangingPassword) {
-                            CircularProgressIndicator(Modifier.size(18.dp), Color.White, 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Menyimpan...")
-                        } else {
-                            Text("Simpan Kata Sandi Baru")
-                        }
-                    }
-                }
+            // Change Password Button
+            Button(
+                onClick = { showChangePassword = true },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkSurface),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().border(1.dp, GlassBorder, RoundedCornerShape(12.dp))
+            ) {
+                Icon(Icons.Default.Edit, contentDescription = null, tint = EmeraldGreen)
+                Spacer(Modifier.width(8.dp))
+                Text("Ubah Kata Sandi", color = TextPrimary)
             }
 
             // Logout Button
@@ -668,7 +703,7 @@ fun AdminDashboard(
             }
 
             Spacer(Modifier.height(16.dp))
-        }
+        } // end else Column
     }
 }
 
