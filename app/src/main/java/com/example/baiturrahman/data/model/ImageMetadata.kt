@@ -4,16 +4,16 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Data model for mosque images stored in Supabase PostgreSQL
- * Maps to the 'mosque_images' table
+ * Data model for mosque images stored in Supabase PostgreSQL.
+ * Maps to the 'mosque_images' table (account_id replaces device_name).
  */
 @Serializable
 data class ImageMetadata(
     @SerialName("id")
     val id: String = "",
 
-    @SerialName("device_name")
-    val deviceName: String = "",
+    @SerialName("account_id")
+    val accountId: String? = null,
 
     @SerialName("image_uri")
     val imageUri: String? = null,
@@ -22,7 +22,7 @@ data class ImageMetadata(
     val displayOrder: Int = 0,
 
     @SerialName("upload_date")
-    val uploadDate: String = "", // ISO 8601 timestamp
+    val uploadDate: String = "",
 
     @SerialName("file_size")
     val fileSize: Long = 0,
@@ -31,18 +31,15 @@ data class ImageMetadata(
     val mimeType: String = "image/jpeg",
 
     @SerialName("upload_status")
-    val uploadStatus: String = "uploading", // uploading, completed, failed
+    val uploadStatus: String = "uploading",
 
     @SerialName("created_at")
-    val createdAt: String = "", // ISO 8601 timestamp
+    val createdAt: String = "",
 
     @SerialName("updated_at")
-    val updatedAt: String = "" // ISO 8601 timestamp
+    val updatedAt: String = ""
 )
 
-/**
- * Enum for upload status
- */
 enum class UploadStatus(val value: String) {
     UPLOADING("uploading"),
     COMPLETED("completed"),
@@ -54,39 +51,3 @@ enum class UploadStatus(val value: String) {
         }
     }
 }
-
-/**
- * Request model for creating a new image record in PostgreSQL
- */
-@Serializable
-data class CreateImageRequest(
-    @SerialName("id")
-    val id: String,
-
-    @SerialName("device_name")
-    val deviceName: String,
-
-    @SerialName("display_order")
-    val displayOrder: Int,
-
-    @SerialName("file_size")
-    val fileSize: Long,
-
-    @SerialName("mime_type")
-    val mimeType: String,
-
-    @SerialName("upload_status")
-    val uploadStatus: String = "uploading"
-)
-
-/**
- * Request model for updating image with URL after upload
- */
-@Serializable
-data class UpdateImageUrlRequest(
-    @SerialName("image_uri")
-    val imageUri: String,
-
-    @SerialName("upload_status")
-    val uploadStatus: String
-)

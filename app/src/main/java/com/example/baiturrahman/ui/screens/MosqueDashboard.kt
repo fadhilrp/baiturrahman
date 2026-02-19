@@ -31,33 +31,64 @@ import com.example.baiturrahman.ui.theme.DarkBackground
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.GlassWhite
 import com.example.baiturrahman.ui.theme.Secondary
+import com.example.baiturrahman.ui.viewmodel.AuthViewModel
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun MosqueDashboard(
-    viewModel: MosqueDashboardViewModel = koinViewModel()
+    viewModel: MosqueDashboardViewModel = koinViewModel(),
+    authViewModel: AuthViewModel = koinViewModel()
 ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
     val screenHeight = configuration.screenHeightDp
-
     val isMobile = screenWidth < 600 || screenHeight > screenWidth
 
     val uiState by viewModel.uiState.collectAsState()
+    val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
     var showAdminDashboard by remember { mutableStateOf(false) }
+    var showLoginScreen by remember { mutableStateOf(false) }
+    var showRegisterScreen by remember { mutableStateOf(false) }
     val mosqueImages by viewModel.mosqueImages.collectAsState()
     val currentImageIndex by viewModel.currentImageIndex.collectAsState()
 
-    // Fade-in on initial load
     var contentVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { contentVisible = true }
+
+    // After login: close login screen and open admin dashboard
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn && showLoginScreen) {
+            showLoginScreen = false
+            showRegisterScreen = false
+            showAdminDashboard = true
+        }
+        // After logout: close admin dashboard
+        if (!isLoggedIn) {
+            showAdminDashboard = false
+        }
+    }
 
     if (showAdminDashboard) {
         AdminDashboard(
             viewModel = viewModel,
+            authViewModel = authViewModel,
             onClose = { showAdminDashboard = false }
         )
+    } else if (showLoginScreen) {
+        if (showRegisterScreen) {
+            RegisterScreen(
+                authViewModel = authViewModel,
+                onNavigateToLogin = { showRegisterScreen = false },
+                onBack = { showRegisterScreen = false }
+            )
+        } else {
+            LoginScreen(
+                authViewModel = authViewModel,
+                onNavigateToRegister = { showRegisterScreen = true },
+                onBack = { showLoginScreen = false }
+            )
+        }
     } else {
         Box(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
             // Islamic pattern background (tiled)
@@ -117,7 +148,7 @@ fun MosqueDashboard(
 
             // Settings button
             IconButton(
-                onClick = { showAdminDashboard = true },
+                onClick = { if (isLoggedIn) showAdminDashboard = true else showLoginScreen = true },
                 modifier = Modifier
                     .align(if (isMobile) Alignment.TopEnd else Alignment.TopStart)
                     .padding(16.dp)

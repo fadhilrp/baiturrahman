@@ -5,51 +5,51 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.baiturrahman.data.model.DeviceSession
 import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.data.model.PrayerTimings
 import com.example.baiturrahman.data.remote.SupabaseSyncService
+import com.example.baiturrahman.data.repository.AccountRepository
+import com.example.baiturrahman.data.repository.ImageRepository
 import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.data.repository.PrayerTimeRepository
-import com.example.baiturrahman.data.repository.ImageRepository
-import com.example.baiturrahman.utils.DevicePreferences
+import com.example.baiturrahman.utils.AccountPreferences
+import com.example.baiturrahman.utils.NetworkConnectivityObserver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class MosqueDashboardViewModel(
     private val prayerTimeRepository: PrayerTimeRepository,
     private val settingsRepository: MosqueSettingsRepository,
     private val imageRepository: ImageRepository,
-    private val devicePreferences: DevicePreferences,
+    private val accountPreferences: AccountPreferences,
     private val application: Application,
-    private val syncService: SupabaseSyncService
+    private val syncService: SupabaseSyncService,
+    private val accountRepository: AccountRepository,
+    private val connectivityObserver: NetworkConnectivityObserver
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "MosqueDashboardViewModel"
     }
 
-    // Default prayer timings to show before API loads
     private val defaultPrayerTimings = PrayerTimings(
-        Fajr = "XX:XX",
-        Sunrise = "XX:XX",
-        Dhuhr = "XX:XX",
-        Asr = "XX:XX",
-        Sunset = "XX:XX",
-        Maghrib = "XX:XX",
-        Isha = "XX:XX",
-        Imsak = "XX:XX",
-        Midnight = "XX:XX"
+        Fajr = "XX:XX", Sunrise = "XX:XX", Dhuhr = "XX:XX", Asr = "XX:XX",
+        Sunset = "XX:XX", Maghrib = "XX:XX", Isha = "XX:XX",
+        Imsak = "XX:XX", Midnight = "XX:XX"
     )
 
     private val _uiState = MutableStateFlow(MosqueDashboardUiState())
     val uiState: StateFlow<MosqueDashboardUiState> = _uiState.asStateFlow()
 
-    // Editable content state
-    private val _quoteText = MutableStateFlow("\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec vel egestas dolor, nec dignissim metus.\"")
+    private val _quoteText = MutableStateFlow("\"Lorem ipsum dolor sit amet, consectetur adipiscing elit.\"")
     val quoteText: StateFlow<String> = _quoteText
 
     private val _mosqueName = MutableStateFlow("Masjid Baiturrahman")
@@ -64,30 +64,22 @@ class MosqueDashboardViewModel(
     private val _logoImage = MutableStateFlow<String?>(null)
     val logoImage: StateFlow<String?> = _logoImage
 
-    // Multiple mosque images for slider
     private val _mosqueImages = MutableStateFlow<List<String>>(emptyList())
     val mosqueImages: StateFlow<List<String>> = _mosqueImages
 
-    // Current image index for slider - with proper synchronization
     private val _currentImageIndex = MutableStateFlow(0)
     val currentImageIndex: StateFlow<Int> = _currentImageIndex
 
-    // Prayer API settings
     private val _prayerAddress = MutableStateFlow("Lebak Bulus, Jakarta, ID")
     val prayerAddress: StateFlow<String> = _prayerAddress
 
     private val _prayerTimezone = MutableStateFlow("Asia/Jakarta")
     val prayerTimezone: StateFlow<String> = _prayerTimezone
 
-    // Available timezones
     val availableTimezones = listOf(
-        "Asia/Jakarta",
-        "Asia/Pontianak",
-        "Asia/Makassar",
-        "Asia/Jayapura"
+        "Asia/Jakarta", "Asia/Pontianak", "Asia/Makassar", "Asia/Jayapura"
     )
 
-    // Loading states for UI
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
 
@@ -100,11 +92,14 @@ class MosqueDashboardViewModel(
     private val _isDeletingImage = MutableStateFlow(false)
     val isDeletingImage: StateFlow<Boolean> = _isDeletingImage.asStateFlow()
 
-    // Available device names from Supabase
-    private val _deviceNames = MutableStateFlow<List<String>>(emptyList())
-    val deviceNames: StateFlow<List<String>> = _deviceNames.asStateFlow()
+    private val _connectedDevices = MutableStateFlow<List<DeviceSession>>(emptyList())
+    val connectedDevices: StateFlow<List<DeviceSession>> = _connectedDevices.asStateFlow()
 
-    // Database image IDs — stores both Room ID and Supabase ID
+    val isOffline: StateFlow<Boolean> = connectivityObserver.isConnected
+        .map { !it }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    // Image ID map: URI → (roomId, supabaseId)
     private data class ImageIds(val roomId: Int, val supabaseId: String?)
     private val imageIdMap = mutableMapOf<String, ImageIds>()
     private var isSliderSyncing = false
@@ -113,33 +108,10 @@ class MosqueDashboardViewModel(
         loadSavedSettings()
         fetchPrayerTimes()
         startImageSlider()
-        loadDeviceNames()
-
-        // Test Supabase connection on startup
-        testSupabaseConnection()
-    }
-
-    fun loadDeviceNames() {
-        viewModelScope.launch {
-            _deviceNames.value = settingsRepository.getAllDeviceNames()
-        }
-    }
-
-    private fun testSupabaseConnection() {
-        viewModelScope.launch {
-            Log.d(TAG, "🧪 Testing Supabase connection on startup...")
-            val connectionSuccess = imageRepository.testConnection()
-            if (connectionSuccess) {
-                Log.d(TAG, "✅ Supabase connection test passed")
-            } else {
-                Log.e(TAG, "❌ Supabase connection test failed")
-            }
-        }
     }
 
     private fun loadSavedSettings() {
         viewModelScope.launch {
-            // Load settings
             settingsRepository.mosqueSettings.collectLatest { settings ->
                 settings?.let {
                     _mosqueName.value = it.mosqueName
@@ -154,37 +126,25 @@ class MosqueDashboardViewModel(
         }
 
         viewModelScope.launch {
-            // Load images with proper synchronization
             settingsRepository.mosqueImages.collectLatest { images ->
-                // Filter out images with null URIs (incomplete uploads)
                 val completedImages = images.filter { !it.imageUri.isNullOrBlank() }
                 val imageUris = completedImages.sortedBy { it.displayOrder }.map { it.imageUri }
 
-                // Set syncing flag to prevent conflicts
                 isSliderSyncing = true
-
                 _mosqueImages.value = imageUris
 
-                // Update image ID map with both Room ID and Supabase ID
                 imageIdMap.clear()
                 completedImages.forEach { image ->
-                    imageIdMap[image.imageUri] = ImageIds(
-                        roomId = image.id,
-                        supabaseId = image.supabaseId
-                    )
+                    imageIdMap[image.imageUri] = ImageIds(image.id, image.supabaseId)
                 }
 
-                // Reset current index if needed, but preserve valid indices
                 val currentIndex = _currentImageIndex.value
-                if (imageUris.isNotEmpty()) {
-                    if (currentIndex >= imageUris.size) {
-                        _currentImageIndex.value = 0
-                    }
-                } else {
+                if (imageUris.isNotEmpty() && currentIndex >= imageUris.size) {
+                    _currentImageIndex.value = 0
+                } else if (imageUris.isEmpty()) {
                     _currentImageIndex.value = 0
                 }
 
-                // Clear syncing flag after a short delay
                 delay(100)
                 isSliderSyncing = false
             }
@@ -194,14 +154,10 @@ class MosqueDashboardViewModel(
     private fun startImageSlider() {
         viewModelScope.launch {
             while (true) {
-                delay(5000) // Change image every 5 seconds
-
-                // Only auto-advance if not currently syncing and we have images
+                delay(5000)
                 if (!isSliderSyncing && _mosqueImages.value.isNotEmpty()) {
                     val currentImages = _mosqueImages.value
                     val currentIndex = _currentImageIndex.value
-
-                    // Calculate next index safely
                     val nextIndex = if (currentIndex + 1 >= currentImages.size) 0 else currentIndex + 1
                     _currentImageIndex.value = nextIndex
                 }
@@ -212,33 +168,28 @@ class MosqueDashboardViewModel(
     fun fetchPrayerTimes() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-
             prayerTimeRepository.getPrayerTimes(
                 address = _prayerAddress.value,
                 timezone = _prayerTimezone.value
             ).fold(
                 onSuccess = { prayerData ->
-                    _uiState.value = _uiState.value.copy(
-                        prayerData = prayerData,
-                        isLoading = false,
-                        errorMessage = null
-                    )
+                    _uiState.value = _uiState.value.copy(prayerData = prayerData, isLoading = false)
                 },
                 onFailure = { error ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "Failed to fetch prayer times: ${error.message}"
+                        errorMessage = "Gagal memuat waktu sholat: ${error.message}"
                     )
                 }
             )
         }
     }
 
-    // Internal save logic — can be called from coroutines without launching nested ones
     private suspend fun saveAllSettingsInternal() {
+        val token = accountPreferences.sessionToken ?: return
         syncService.withSyncLock {
             settingsRepository.saveSettings(
-                deviceName = devicePreferences.deviceName,
+                sessionToken = token,
                 mosqueName = _mosqueName.value,
                 mosqueLocation = _mosqueLocation.value,
                 logoImage = _logoImage.value,
@@ -250,7 +201,6 @@ class MosqueDashboardViewModel(
         }
     }
 
-    // Save all settings to database, wrapped in sync lock
     fun saveAllSettings() {
         viewModelScope.launch {
             _isSaving.value = true
@@ -262,179 +212,130 @@ class MosqueDashboardViewModel(
         }
     }
 
-    // Update functions for editable content
-    fun updateQuoteText(text: String) {
-        _quoteText.value = text
-    }
+    fun updateQuoteText(text: String) { _quoteText.value = text }
+    fun updateMosqueName(name: String) { _mosqueName.value = name }
+    fun updateMosqueLocation(location: String) { _mosqueLocation.value = location }
+    fun updateMarqueeText(text: String) { _marqueeText.value = text }
 
-    fun updateMosqueName(name: String) {
-        _mosqueName.value = name
-    }
-
-    fun updateMosqueLocation(location: String) {
-        _mosqueLocation.value = location
-    }
-
-    fun updateMarqueeText(text: String) {
-        _marqueeText.value = text
-    }
-
-    // Update the logo image — uses storage-only methods (no mosque_images record)
     fun updateLogoImage(uri: String) {
         viewModelScope.launch {
             _isUploadingLogo.value = true
             try {
-                Log.d(TAG, "=== UPDATING LOGO IMAGE ===")
-                Log.d(TAG, "URI: $uri")
-
                 val publicUrl = imageRepository.uploadLogoToStorage(Uri.parse(uri))
                 if (publicUrl != null) {
-                    Log.d(TAG, "✅ Logo uploaded successfully: $publicUrl")
-
-                    // Delete old logo from storage if it exists
                     val oldLogoUrl = _logoImage.value
                     if (oldLogoUrl != null && oldLogoUrl != publicUrl) {
-                        Log.d(TAG, "🗑️ Deleting old logo: $oldLogoUrl")
                         imageRepository.deleteLogoFromStorage(oldLogoUrl)
                     }
-
                     _logoImage.value = publicUrl
-                    Log.d(TAG, "✅ Logo image updated in ViewModel")
-                    // Auto-save settings after logo upload
                     saveAllSettingsInternal()
                 } else {
-                    Log.e(TAG, "❌ Failed to upload logo image")
+                    Log.e(TAG, "Logo upload failed")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Error updating logo", e)
+                Log.e(TAG, "Error updating logo", e)
             } finally {
                 _isUploadingLogo.value = false
             }
         }
     }
 
-    // Add mosque image — stores supabaseId in Room, wrapped in sync lock
     fun addMosqueImage(uri: String) {
-        if (_mosqueImages.value.size < 5) {
-            viewModelScope.launch {
-                _isUploadingImage.value = true
-                try {
-                    Log.d(TAG, "=== ADDING MOSQUE IMAGE ===")
-                    Log.d(TAG, "URI: $uri")
-                    Log.d(TAG, "Device: ${devicePreferences.deviceName}")
-                    Log.d(TAG, "Current images count: ${_mosqueImages.value.size}")
-
-                    val currentCount = _mosqueImages.value.size
-
-                    syncService.withSyncLock {
-                        val result = imageRepository.uploadImage(
-                            Uri.parse(uri),
-                            "mosque-images",
-                            displayOrder = currentCount,
-                            deviceName = devicePreferences.deviceName
-                        )
-                        if (result != null) {
-                            Log.d(TAG, "✅ Mosque image uploaded: ${result.publicUrl} (id: ${result.supabaseId})")
-                            settingsRepository.addMosqueImage(result.publicUrl, result.supabaseId)
-                            Log.d(TAG, "✅ Mosque image added to repository with supabaseId")
-                        } else {
-                            Log.e(TAG, "❌ Failed to upload mosque image")
-                        }
+        if (_mosqueImages.value.size >= 5) {
+            Log.w(TAG, "Max images reached")
+            return
+        }
+        viewModelScope.launch {
+            _isUploadingImage.value = true
+            try {
+                val token = accountPreferences.sessionToken ?: return@launch
+                val currentCount = _mosqueImages.value.size
+                syncService.withSyncLock {
+                    val result = imageRepository.uploadImage(
+                        Uri.parse(uri),
+                        "mosque-images",
+                        displayOrder = currentCount,
+                        sessionToken = token
+                    )
+                    if (result != null) {
+                        settingsRepository.addMosqueImage(result.publicUrl, result.supabaseId)
+                    } else {
+                        Log.e(TAG, "Image upload failed")
                     }
-                    // Auto-save settings after image upload
-                    saveAllSettingsInternal()
-                } catch (e: Exception) {
-                    Log.e(TAG, "❌ Error adding mosque image", e)
-                } finally {
-                    _isUploadingImage.value = false
                 }
+                saveAllSettingsInternal()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error adding image", e)
+            } finally {
+                _isUploadingImage.value = false
             }
-        } else {
-            Log.w(TAG, "⚠️ Cannot add more images, limit reached (5/5)")
         }
     }
 
-    // Remove mosque image — passes supabaseId + deviceName, wrapped in sync lock
     fun removeMosqueImage(index: Int) {
-        if (index in _mosqueImages.value.indices) {
-            val imageUrl = _mosqueImages.value[index]
-            val ids = imageIdMap[imageUrl] ?: return
+        if (index !in _mosqueImages.value.indices) return
+        val imageUrl = _mosqueImages.value[index]
+        val ids = imageIdMap[imageUrl] ?: return
 
-            viewModelScope.launch {
-                _isDeletingImage.value = true
-                try {
-                    Log.d(TAG, "=== REMOVING MOSQUE IMAGE ===")
-                    Log.d(TAG, "Index: $index")
-                    Log.d(TAG, "Image URL: $imageUrl")
-                    Log.d(TAG, "Room ID: ${ids.roomId}, Supabase ID: ${ids.supabaseId}")
-
-                    syncService.withSyncLock {
-                        val deleteSuccess = imageRepository.deleteImage(
-                            imageUrl,
-                            ids.supabaseId,
-                            devicePreferences.deviceName
-                        )
-                        if (deleteSuccess) {
-                            Log.d(TAG, "✅ Image deleted from Supabase")
-                            settingsRepository.removeMosqueImage(ids.roomId)
-                            Log.d(TAG, "✅ Image removed from local database")
-                        } else {
-                            Log.e(TAG, "❌ Failed to delete image from Supabase")
-                        }
+        viewModelScope.launch {
+            _isDeletingImage.value = true
+            try {
+                val token = accountPreferences.sessionToken ?: return@launch
+                syncService.withSyncLock {
+                    val deleteSuccess = imageRepository.deleteImage(imageUrl, ids.supabaseId, token)
+                    if (deleteSuccess) {
+                        settingsRepository.removeMosqueImage(ids.roomId)
+                    } else {
+                        Log.e(TAG, "Image delete failed")
                     }
-                    // Auto-save settings after image delete
-                    saveAllSettingsInternal()
-                } catch (e: Exception) {
-                    Log.e(TAG, "❌ Error removing image", e)
-                } finally {
-                    _isDeletingImage.value = false
                 }
+                saveAllSettingsInternal()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error removing image", e)
+            } finally {
+                _isDeletingImage.value = false
             }
-        } else {
-            Log.w(TAG, "⚠️ Invalid image index: $index")
         }
     }
 
-    // Functions for mosque image slider
     fun setCurrentImageIndex(index: Int) {
-        val currentImages = _mosqueImages.value
-        if (!isSliderSyncing && index in currentImages.indices) {
+        if (!isSliderSyncing && index in _mosqueImages.value.indices) {
             _currentImageIndex.value = index
         }
     }
 
-    // Update prayer API settings
     fun updatePrayerAddress(address: String) {
         _prayerAddress.value = address
-        fetchPrayerTimes() // Refresh prayer times with new address
+        fetchPrayerTimes()
     }
 
     fun updatePrayerTimezone(timezone: String) {
         if (timezone in availableTimezones) {
             _prayerTimezone.value = timezone
-            fetchPrayerTimes() // Refresh prayer times with new timezone
+            fetchPrayerTimes()
         }
     }
 
-    // Debug function to test Supabase connection
-    fun debugSupabaseConnection() {
+    fun loadConnectedDevices() {
         viewModelScope.launch {
-            Log.d(TAG, "🧪 Manual Supabase connection test triggered")
-            val success = imageRepository.testConnection()
-            Log.d(TAG, if (success) "✅ Connection test passed" else "❌ Connection test failed")
+            _connectedDevices.value = accountRepository.getActiveSessions()
+        }
+    }
+
+    fun forceLogoutDevice(sessionId: String) {
+        viewModelScope.launch {
+            accountRepository.forceLogoutDevice(sessionId)
+            loadConnectedDevices()
         }
     }
 
     /**
-     * Rename device atomically in remote PostgreSQL, wrapped in sync lock.
+     * Change password. Returns null on success, error message on failure.
      */
-    suspend fun renameDevice(oldName: String, newName: String): Boolean {
-        return syncService.withSyncLock {
-            settingsRepository.renameDevice(oldName, newName)
-        }
+    suspend fun changePassword(oldPassword: String, newPassword: String): String? {
+        return accountRepository.changePassword(oldPassword, newPassword)
     }
 
-    // UI state for the MosqueDashboard
     data class MosqueDashboardUiState(
         val prayerData: PrayerData? = null,
         val isLoading: Boolean = true,
