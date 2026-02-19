@@ -7,7 +7,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.baiturrahman.data.model.DeviceSession
 import com.example.baiturrahman.data.model.PrayerData
-import com.example.baiturrahman.data.model.PrayerTimings
 import com.example.baiturrahman.data.remote.SupabaseSyncService
 import com.example.baiturrahman.data.repository.AccountRepository
 import com.example.baiturrahman.data.repository.ImageRepository
@@ -39,12 +38,6 @@ class MosqueDashboardViewModel(
     companion object {
         private const val TAG = "MosqueDashboardViewModel"
     }
-
-    private val defaultPrayerTimings = PrayerTimings(
-        Fajr = "XX:XX", Sunrise = "XX:XX", Dhuhr = "XX:XX", Asr = "XX:XX",
-        Sunset = "XX:XX", Maghrib = "XX:XX", Isha = "XX:XX",
-        Imsak = "XX:XX", Midnight = "XX:XX"
-    )
 
     private val _uiState = MutableStateFlow(MosqueDashboardUiState())
     val uiState: StateFlow<MosqueDashboardUiState> = _uiState.asStateFlow()

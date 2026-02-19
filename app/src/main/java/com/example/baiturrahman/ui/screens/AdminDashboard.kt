@@ -330,7 +330,11 @@ fun AdminDashboard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (isChangingPassword) {
-                        CircularProgressIndicator(Modifier.size(18.dp), Color.White, 2.dp)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
                         Spacer(Modifier.width(8.dp))
                         Text("Menyimpan...")
                     } else {
@@ -426,7 +430,11 @@ fun AdminDashboard(
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 if (isUploadingLogo) {
-                                    CircularProgressIndicator(Modifier.size(18.dp), Color.White, 2.dp)
+                                    CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
                                     Spacer(Modifier.width(8.dp))
                                     Text("Mengupload...")
                                 } else {
@@ -565,7 +573,11 @@ fun AdminDashboard(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             if (isUploadingImage) {
-                                CircularProgressIndicator(Modifier.size(18.dp), Color.White, 2.dp)
+                                CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
                                 Spacer(Modifier.width(8.dp))
                                 Text("Mengupload...")
                             } else {
@@ -742,7 +754,7 @@ private fun formatLastSeen(isoTimestamp: String): String {
         } else {
             isoTimestamp
         }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         isoTimestamp
     }
 }

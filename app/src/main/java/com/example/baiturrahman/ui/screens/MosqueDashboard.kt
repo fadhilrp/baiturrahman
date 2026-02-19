@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.unit.IntOffset
@@ -202,8 +201,7 @@ private fun TvDashboardLayout(
                     // Next prayer indicator overlay at bottom center of slider
                     Box(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 0.dp),
+                            .align(Alignment.BottomCenter),
                     ) {
                         NextPrayerCountdown(
                             timings = uiState.prayerData?.timings
@@ -237,7 +235,7 @@ private fun TvDashboardLayout(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            CurrentTimeDisplay(uiState.prayerData)
+                            CurrentTimeDisplay()
                             Spacer(modifier = Modifier.height(4.dp))
                             CurrentDateDisplay(uiState.prayerData)
                         }
@@ -297,7 +295,7 @@ private fun MobileDashboardLayout(
                     .padding(top = 4.dp, bottom = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                CurrentTimeDisplay(uiState.prayerData)
+                CurrentTimeDisplay()
                 Spacer(modifier = Modifier.height(8.dp))
                 CurrentDateDisplay(uiState.prayerData)
             }

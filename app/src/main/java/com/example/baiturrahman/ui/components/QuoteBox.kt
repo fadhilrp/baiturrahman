@@ -45,16 +45,16 @@ fun QuoteBox(
             .background(c.secondary.copy(alpha = 0.4f), shape)
             .border(1.dp, c.border.copy(alpha = 0.4f), shape)
             .padding(
-                horizontal = if (isMobile) 16.dp else 16.dp,
+                horizontal = 16.dp,
                 vertical = if (isMobile) 14.dp else 12.dp
             )
     ) {
         // Opening quote mark
         Text(
             text = "\u201C",
-            fontSize = if (isMobile) 24.sp else 24.sp,
+            fontSize = 24.sp,
             color = EmeraldGreen,
-            lineHeight = if (isMobile) 24.sp else 24.sp,
+            lineHeight = 24.sp,
         )
 
         // Quote text

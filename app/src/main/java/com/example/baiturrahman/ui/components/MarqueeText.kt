@@ -80,7 +80,7 @@ fun MarqueeText(
                     letterSpacing = 1.sp,
                 ),
                 color = c.mutedForeground,
-                textAlign = TextAlign.Left,
+                textAlign = TextAlign.Start,
                 maxLines = 1,
                 overflow = TextOverflow.Visible,
                 softWrap = false,

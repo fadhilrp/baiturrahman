@@ -215,7 +215,7 @@ fun NextPrayerCountdown(
             // Countdown with stroke outline
             val countdownStyle = TextStyle(
                 fontFamily = JetBrainsMono,
-                fontSize = if (isMobile) 16.sp else 16.sp,
+                fontSize = 16.sp,
             )
             Box(contentAlignment = Alignment.Center) {
                 // Stroke layer
