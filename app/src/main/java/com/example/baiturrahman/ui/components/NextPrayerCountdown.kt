@@ -5,8 +5,10 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,16 +28,12 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.baiturrahman.R
 import com.example.baiturrahman.data.model.PrayerTimings
 import com.example.baiturrahman.ui.theme.EmeraldGreen
-import com.example.baiturrahman.ui.theme.Foreground
 import com.example.baiturrahman.ui.theme.GoldAccent
 import com.example.baiturrahman.ui.theme.JetBrainsMono
 import com.example.baiturrahman.ui.theme.LocalAppColors
@@ -150,17 +148,21 @@ fun NextPrayerCountdown(
     )
 
     val countdownColor by animateColorAsState(
-        targetValue = if (isIqomahTime) TextOnAccent else Foreground.copy(alpha = 0.7f),
+        targetValue = if (isIqomahTime) TextOnAccent else c.foreground.copy(alpha = 0.9f),
         animationSpec = tween(durationMillis = STANDARD_DURATION),
         label = "countdown_time"
     )
 
-    val shape = RoundedCornerShape(
-        topStart = if (isMobile) 16.dp else 24.dp,
-        topEnd = if (isMobile) 16.dp else 24.dp,
-        bottomStart = 0.dp,
-        bottomEnd = 0.dp
-    )
+    val shape = if (isMobile) {
+        RoundedCornerShape(50.dp)
+    } else {
+        RoundedCornerShape(
+            topStart = 24.dp,
+            topEnd = 24.dp,
+            bottomStart = 0.dp,
+            bottomEnd = 0.dp
+        )
+    }
 
     val bgColor by animateColorAsState(
         targetValue = if (isIqomahTime) GoldAccent.copy(alpha = 0.85f) else c.glassWhite,
@@ -179,55 +181,61 @@ fun NextPrayerCountdown(
             .clip(shape)
             .background(bgColor, shape)
             .border(1.dp, borderColor, shape)
-            .padding(horizontal = 24.dp, vertical = 10.dp),
+            .padding(horizontal = if (isMobile) 16.dp else 24.dp, vertical = if (isMobile) 8.dp else 10.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Prayer name with stroke outline
+        if (isMobile) {
             val nameStyle = TextStyle(
                 fontFamily = PlusJakartaSans,
-                fontSize = if (isMobile) 22.sp else 20.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
             )
-            Box(contentAlignment = Alignment.Center) {
-                // Stroke layer
-                Text(
-                    text = displayPrayerName,
-                    style = nameStyle.copy(
-                        drawStyle = Stroke(width = 3f, join = StrokeJoin.Round)
-                    ),
-                    color = Color.Black.copy(alpha = 0.6f),
-                    textAlign = TextAlign.Center,
-                )
-                // Fill layer
+            val countdownStyle = TextStyle(
+                fontFamily = JetBrainsMono,
+                fontSize = 13.sp,
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
                 Text(
                     text = displayPrayerName,
                     style = nameStyle,
                     color = nameColor,
                     textAlign = TextAlign.Center,
                 )
+                Text(
+                    text = "  ·  ",
+                    style = TextStyle(fontFamily = PlusJakartaSans, fontSize = 13.sp),
+                    color = nameColor.copy(alpha = 0.5f),
+                )
+                Text(
+                    text = timeRemaining,
+                    style = countdownStyle,
+                    color = countdownColor,
+                    textAlign = TextAlign.Center,
+                )
             }
-
-            Spacer(modifier = Modifier.height(if (isMobile) 2.dp else 4.dp))
-
-            // Countdown with stroke outline
+        } else {
+            val nameStyle = TextStyle(
+                fontFamily = PlusJakartaSans,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+            )
             val countdownStyle = TextStyle(
                 fontFamily = JetBrainsMono,
                 fontSize = 16.sp,
             )
-            Box(contentAlignment = Alignment.Center) {
-                // Stroke layer
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
-                    text = timeRemaining,
-                    style = countdownStyle.copy(
-                        drawStyle = Stroke(width = 3f, join = StrokeJoin.Round)
-                    ),
-                    color = Color.Black.copy(alpha = 0.6f),
+                    text = displayPrayerName,
+                    style = nameStyle,
+                    color = nameColor,
                     textAlign = TextAlign.Center,
                 )
-                // Fill layer
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = timeRemaining,
                     style = countdownStyle,

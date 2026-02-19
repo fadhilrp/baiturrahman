@@ -139,24 +139,27 @@ fun MosqueDashboard(
                         uiState = uiState,
                         mosqueImages = mosqueImages,
                         currentImageIndex = currentImageIndex,
+                        onSettingsClick = { if (isLoggedIn) showAdminDashboard = true else showLoginScreen = true },
                     )
                 }
             }
 
-            // Settings button
-            IconButton(
-                onClick = { if (isLoggedIn) showAdminDashboard = true else showLoginScreen = true },
-                modifier = Modifier
-                    .align(if (isMobile) Alignment.TopEnd else Alignment.TopStart)
-                    .padding(16.dp)
-                    .size(48.dp)
-                    .background(c.glassWhite, shape = CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Pengaturan Admin",
-                    tint = EmeraldGreen
-                )
+            // Settings button — mobile only (no background)
+            if (isMobile) {
+                IconButton(
+                    onClick = { if (isLoggedIn) showAdminDashboard = true else showLoginScreen = true },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .statusBarsPadding()
+                        .padding(16.dp)
+                        .size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Pengaturan Admin",
+                        tint = EmeraldGreen
+                    )
+                }
             }
         }
     }
@@ -168,6 +171,7 @@ private fun TvDashboardLayout(
     uiState: MosqueDashboardViewModel.MosqueDashboardUiState,
     mosqueImages: List<String>,
     currentImageIndex: Int,
+    onSettingsClick: () -> Unit,
 ) {
     val c = LocalAppColors.current
     Column(modifier = Modifier.fillMaxSize()) {
@@ -207,6 +211,22 @@ private fun TvDashboardLayout(
                             timings = uiState.prayerData?.timings
                         )
                     }
+
+                    // Settings button at top-left of slider
+                    IconButton(
+                        onClick = onSettingsClick,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp)
+                            .size(40.dp)
+                            .background(c.glassWhite, shape = CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Pengaturan Admin",
+                            tint = EmeraldGreen
+                        )
+                    }
                 }
 
                 // Right: Info panel
@@ -226,8 +246,15 @@ private fun TvDashboardLayout(
                             .fillMaxWidth()
                             .wrapContentHeight()
                             .clip(clockDateShape)
-                            .background(c.secondary.copy(alpha = 0.4f), clockDateShape)
-                            .border(1.dp, c.border.copy(alpha = 0.4f), clockDateShape)
+                            .background(
+                                c.secondary.copy(alpha = if (c.isDark) 0.4f else 1f),
+                                clockDateShape
+                            )
+                            .border(
+                                1.dp,
+                                c.border.copy(alpha = if (c.isDark) 0.4f else 1f),
+                                clockDateShape
+                            )
                             .padding(top = 2.dp, bottom = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -271,72 +298,85 @@ private fun MobileDashboardLayout(
     currentImageIndex: Int,
 ) {
     val c = LocalAppColors.current
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        // statusBarsPadding keeps content below the transparent status bar (edge-to-edge, API 35+)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .statusBarsPadding()
+                .padding(horizontal = 8.dp)
         ) {
+            Spacer(Modifier.height(8.dp))
+
             // Mosque Identity
             Header()
+            Spacer(Modifier.height(8.dp))
 
-            // Clock + Date
+            // Clock + Date card — themed colors for light/dark mode
             val clockDateShape = RoundedCornerShape(12.dp)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(clockDateShape)
-                    .background(c.secondary.copy(alpha = 0.4f), clockDateShape)
-                    .border(1.dp, c.border.copy(alpha = 0.4f), clockDateShape)
-                    .padding(top = 4.dp, bottom = 12.dp),
+                    .background(
+                        c.secondary.copy(alpha = if (c.isDark) 0.4f else 1f),
+                        clockDateShape
+                    )
+                    .border(
+                        1.dp,
+                        c.border.copy(alpha = if (c.isDark) 0.4f else 1f),
+                        clockDateShape
+                    )
+                    .padding(vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                CurrentTimeDisplay()
+                CurrentTimeDisplay(uiState.prayerData)
                 Spacer(modifier = Modifier.height(8.dp))
                 CurrentDateDisplay(uiState.prayerData)
             }
+            Spacer(Modifier.height(8.dp))
 
-            // Image Slider with next prayer overlay
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.5f)
-            ) {
+            // Image Slider
+            Box(modifier = Modifier.fillMaxWidth().weight(0.4f)) {
                 ImageSlider(
                     images = mosqueImages,
                     currentIndex = currentImageIndex,
                     onIndexChange = viewModel::setCurrentImageIndex,
                     modifier = Modifier.fillMaxSize()
                 )
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 32.dp),
-                ) {
-                    NextPrayerCountdown(
-                        timings = uiState.prayerData?.timings
-                    )
-                }
             }
+            Spacer(Modifier.height(8.dp))
 
             // Quote Box
             val quote by viewModel.quoteText.collectAsState()
-            QuoteBox(quote = quote)
+            QuoteBox(quote = quote, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
 
             // Prayer Times Grid
-            PrayerTimesGrid(
-                timings = uiState.prayerData?.timings,
-                isMobile = true
-            )
+            Box(modifier = Modifier.fillMaxWidth()) {
+                PrayerTimesGrid(
+                    timings = uiState.prayerData?.timings,
+                    isMobile = true
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+
+            // Next Prayer Countdown
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                NextPrayerCountdown(timings = uiState.prayerData?.timings)
+            }
         }
 
-        // MarqueeText pinned to bottom
-        val text by viewModel.marqueeText.collectAsState()
-        MarqueeText(text = text)
+        // navigationBarsPadding keeps marquee above the gesture/button nav bar (API 35+)
+        Box(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
+            val text by viewModel.marqueeText.collectAsState()
+            MarqueeText(text = text)
+        }
     }
 }

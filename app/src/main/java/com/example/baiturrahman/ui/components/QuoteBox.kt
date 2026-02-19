@@ -2,6 +2,7 @@ package com.example.baiturrahman.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,12 +43,13 @@ fun QuoteBox(
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.secondary.copy(alpha = 0.4f), shape)
-            .border(1.dp, c.border.copy(alpha = 0.4f), shape)
+            .background(c.secondary.copy(alpha = if (c.isDark) 0.55f else 1f), shape)
+            .border(1.dp, c.border.copy(alpha = if (c.isDark) 0.55f else 1f), shape)
             .padding(
                 horizontal = 16.dp,
                 vertical = if (isMobile) 14.dp else 12.dp
-            )
+            ),
+        verticalArrangement = Arrangement.Center
     ) {
         // Opening quote mark
         Text(
@@ -60,7 +62,7 @@ fun QuoteBox(
         // Quote text
         Text(
             text = quoteText,
-            color = c.foreground.copy(alpha = 0.8f),
+            color = c.foreground,
             fontStyle = FontStyle.Italic,
             style = MaterialTheme.typography.bodyLarge.copy(
                 lineHeight = 24.sp

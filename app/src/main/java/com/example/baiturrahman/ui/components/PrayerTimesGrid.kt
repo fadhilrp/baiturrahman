@@ -35,14 +35,11 @@ import com.example.baiturrahman.R
 import com.example.baiturrahman.data.model.PrayerTimings
 import com.example.baiturrahman.ui.theme.ActivePrayerBg
 import com.example.baiturrahman.ui.theme.EmeraldGreen
-import com.example.baiturrahman.ui.theme.Foreground
 import com.example.baiturrahman.ui.theme.GoldAccent
 import com.example.baiturrahman.ui.theme.GoldMuted
 import com.example.baiturrahman.ui.theme.JetBrainsMono
 import com.example.baiturrahman.ui.theme.LocalAppColors
-import com.example.baiturrahman.ui.theme.MutedForeground
 import com.example.baiturrahman.ui.theme.PlusJakartaSans
-import com.example.baiturrahman.ui.theme.SecondaryForeground
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -147,7 +144,7 @@ fun PrayerTimesGrid(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf("Imsak", "Shubuh", "Syuruq", "Dhuha").forEach { name ->
@@ -158,13 +155,13 @@ fun PrayerTimesGrid(
                         isNext = name == nextPrayerName && !isIqomahTime,
                         isIqomahTime = isIqomahTime && name == currentIqomahPrayer,
                         isMobile = true,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).fillMaxHeight()
                     )
                 }
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf("Dzuhur", "Ashar", "Maghrib", "Isya").forEach { name ->
@@ -175,7 +172,7 @@ fun PrayerTimesGrid(
                         isNext = name == nextPrayerName && !isIqomahTime,
                         isIqomahTime = isIqomahTime && name == currentIqomahPrayer,
                         isMobile = true,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).fillMaxHeight()
                     )
                 }
             }
@@ -242,7 +239,7 @@ private fun PrayerTimeCard(
             isIqomahTime -> GoldAccent
             isActive -> EmeraldGreen
             isNext -> EmeraldGreen.copy(alpha = 0.7f)
-            else -> MutedForeground
+            else -> c.mutedForeground
         },
         animationSpec = tween(durationMillis = 500),
         label = "card_name"
@@ -251,9 +248,9 @@ private fun PrayerTimeCard(
     val timeColor by animateColorAsState(
         targetValue = when {
             isIqomahTime -> GoldAccent
-            isActive -> Foreground
-            isNext -> Foreground
-            else -> SecondaryForeground
+            isActive -> c.foreground
+            isNext -> c.foreground
+            else -> c.mutedForeground
         },
         animationSpec = tween(durationMillis = 500),
         label = "card_time"
@@ -278,7 +275,7 @@ private fun PrayerTimeCard(
     Column(
         modifier = cardModifier
             .padding(
-                vertical = if (isMobile) 12.dp else 16.dp,
+                vertical = if (isMobile) 8.dp else 16.dp,
                 horizontal = if (isMobile) 4.dp else 8.dp
             ),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -289,15 +286,15 @@ private fun PrayerTimeCard(
             text = name.uppercase(),
             style = TextStyle(
                 fontFamily = PlusJakartaSans,
-                fontSize = if (isMobile) 10.sp else 12.sp,
+                fontSize = if (isMobile) 9.sp else 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                letterSpacing = 1.5.sp,
+                letterSpacing = 1.sp,
             ),
             color = nameColor,
             maxLines = 1,
         )
 
-        Spacer(modifier = Modifier.height(if (isMobile) 4.dp else 8.dp))
+        Spacer(modifier = Modifier.height(if (isMobile) 2.dp else 8.dp))
 
         // Time (monospace)
         if (isActive && !isIqomahTime) {
@@ -305,7 +302,7 @@ private fun PrayerTimeCard(
                 text = time,
                 style = TextStyle(
                     fontFamily = JetBrainsMono,
-                    fontSize = if (isMobile) 16.sp else 24.sp,
+                    fontSize = if (isMobile) 14.sp else 24.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp,
                 ),
@@ -317,7 +314,7 @@ private fun PrayerTimeCard(
                 text = time,
                 style = TextStyle(
                     fontFamily = JetBrainsMono,
-                    fontSize = if (isMobile) 16.sp else 24.sp,
+                    fontSize = if (isMobile) 14.sp else 24.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp,
                 ),

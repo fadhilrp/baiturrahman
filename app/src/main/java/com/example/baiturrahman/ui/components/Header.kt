@@ -49,8 +49,8 @@ fun Header(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.secondary.copy(alpha = 0.7f), shape)
-            .border(1.dp, c.border.copy(alpha = 0.5f), shape)
+            .background(c.secondary.copy(alpha = if (c.isDark) 0.7f else 1f), shape)
+            .border(1.dp, c.border.copy(alpha = if (c.isDark) 0.5f else 1f), shape)
             .padding(horizontal = if (isMobile) 12.dp else 16.dp, vertical = if (isMobile) 10.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.JetBrainsMono
 import com.example.baiturrahman.ui.theme.LocalAppColors
@@ -29,7 +30,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun CurrentTimeDisplay() {
+fun CurrentTimeDisplay(prayerData: PrayerData? = null) {
     val c = LocalAppColors.current
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
