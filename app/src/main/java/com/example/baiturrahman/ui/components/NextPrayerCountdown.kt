@@ -8,9 +8,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -24,17 +25,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.baiturrahman.R
 import com.example.baiturrahman.data.model.PrayerTimings
-import com.example.baiturrahman.ui.theme.DarkBackground
 import com.example.baiturrahman.ui.theme.EmeraldGreen
+import com.example.baiturrahman.ui.theme.Foreground
 import com.example.baiturrahman.ui.theme.GlassBorder
 import com.example.baiturrahman.ui.theme.GlassWhite
 import com.example.baiturrahman.ui.theme.GoldAccent
+import com.example.baiturrahman.ui.theme.JetBrainsMono
+import com.example.baiturrahman.ui.theme.MutedForeground
+import com.example.baiturrahman.ui.theme.PlusJakartaSans
 import com.example.baiturrahman.ui.theme.TextOnAccent
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
@@ -138,43 +146,55 @@ fun NextPrayerCountdown(
 
     LaunchedEffect(shouldPlayPrayerAlarm) {
         if (shouldPlayPrayerAlarm) {
-            playAlarmSound(context, prayerAlarmPlayer)
+            playAlarmSoundCountdown(context, prayerAlarmPlayer)
             shouldPlayPrayerAlarm = false
         }
     }
 
     LaunchedEffect(shouldPlayIqomahAlarm) {
         if (shouldPlayIqomahAlarm) {
-            playAlarmSound(context, iqomahAlarmPlayer)
+            playAlarmSoundCountdown(context, iqomahAlarmPlayer)
             shouldPlayIqomahAlarm = false
         }
     }
 
-    val (currentPrayer, nextPrayer) = if (!isIqomahTime) {
+    val (_, nextPrayer) = if (!isIqomahTime) {
         findCurrentAndNextPrayer(currentTimeObj, prayerTimeObjects, orderedPrayers)
     } else {
         Pair(currentPrayerName, currentPrayerName)
     }
 
-    val displayText = if (isIqomahTime) {
-        val timeRemaining = calculateTimeRemaining(currentTimeObj, iqomahEndTime ?: LocalTime.MIDNIGHT)
-        "Iqomah $currentPrayerName $timeRemaining"
+    val displayPrayerName = if (isIqomahTime) "Iqomah $currentPrayerName" else nextPrayer
+    val timeRemaining = if (isIqomahTime) {
+        calculateTimeRemaining(currentTimeObj, iqomahEndTime ?: LocalTime.MIDNIGHT)
     } else {
-        val timeRemaining = calculateTimeRemaining(currentTimeObj, prayerTimeObjects[nextPrayer] ?: LocalTime.MIDNIGHT)
-        "$nextPrayer $timeRemaining"
+        calculateTimeRemaining(currentTimeObj, prayerTimeObjects[nextPrayer] ?: LocalTime.MIDNIGHT)
     }
 
-    // Animated colors for smooth normal <-> iqomah transition
+    // Animated colors
+    val nameColor by animateColorAsState(
+        targetValue = if (isIqomahTime) GoldAccent else EmeraldGreen,
+        animationSpec = tween(durationMillis = STANDARD_DURATION),
+        label = "countdown_name"
+    )
+
+    val countdownColor by animateColorAsState(
+        targetValue = if (isIqomahTime) TextOnAccent else Foreground.copy(alpha = 0.7f),
+        animationSpec = tween(durationMillis = STANDARD_DURATION),
+        label = "countdown_time"
+    )
+
+    val shape = RoundedCornerShape(
+        topStart = if (isMobile) 16.dp else 24.dp,
+        topEnd = if (isMobile) 16.dp else 24.dp,
+        bottomStart = 0.dp,
+        bottomEnd = 0.dp
+    )
+
     val bgColor by animateColorAsState(
         targetValue = if (isIqomahTime) GoldAccent.copy(alpha = 0.85f) else GlassWhite,
         animationSpec = tween(durationMillis = STANDARD_DURATION),
         label = "countdown_bg"
-    )
-
-    val textColor by animateColorAsState(
-        targetValue = if (isIqomahTime) TextOnAccent else EmeraldGreen,
-        animationSpec = tween(durationMillis = STANDARD_DURATION),
-        label = "countdown_text"
     )
 
     val borderColor by animateColorAsState(
@@ -183,52 +203,72 @@ fun NextPrayerCountdown(
         label = "countdown_border"
     )
 
-    val shape = RoundedCornerShape(
-        topStart = if (isMobile) 16.dp else 100.dp,
-        topEnd = if (isMobile) 16.dp else 100.dp,
-        bottomStart = 0.dp,
-        bottomEnd = 0.dp
-    )
-
     Box(
         modifier = modifier
             .clip(shape)
             .background(bgColor, shape)
             .border(1.dp, borderColor, shape)
-            .padding(
-                horizontal = if (isMobile) 16.dp else 32.dp,
-                vertical = if (isMobile) 8.dp else 16.dp
-            ),
+            .padding(horizontal = 24.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            val textStyle = if (isMobile) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium
-            Box {
-                // Outline/stroke layer
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Prayer name with stroke outline
+            val nameStyle = TextStyle(
+                fontFamily = PlusJakartaSans,
+                fontSize = if (isMobile) 22.sp else 20.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Box(contentAlignment = Alignment.Center) {
+                // Stroke layer
                 Text(
-                    text = displayText,
-                    color = DarkBackground,
-                    style = textStyle.copy(
-                        drawStyle = Stroke(
-                            width = 8f,
-                            join = StrokeJoin.Round
-                        )
+                    text = displayPrayerName,
+                    style = nameStyle.copy(
+                        drawStyle = Stroke(width = 3f, join = StrokeJoin.Round)
                     ),
-                    fontWeight = FontWeight.Bold,
+                    color = Color.Black.copy(alpha = 0.6f),
+                    textAlign = TextAlign.Center,
                 )
-                // Fill layer on top
+                // Fill layer
                 Text(
-                    text = displayText,
-                    color = textColor,
-                    style = textStyle,
-                    fontWeight = FontWeight.Bold,
+                    text = displayPrayerName,
+                    style = nameStyle,
+                    color = nameColor,
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(if (isMobile) 2.dp else 4.dp))
+
+            // Countdown with stroke outline
+            val countdownStyle = TextStyle(
+                fontFamily = JetBrainsMono,
+                fontSize = if (isMobile) 16.sp else 16.sp,
+            )
+            Box(contentAlignment = Alignment.Center) {
+                // Stroke layer
+                Text(
+                    text = timeRemaining,
+                    style = countdownStyle.copy(
+                        drawStyle = Stroke(width = 3f, join = StrokeJoin.Round)
+                    ),
+                    color = Color.Black.copy(alpha = 0.6f),
+                    textAlign = TextAlign.Center,
+                )
+                // Fill layer
+                Text(
+                    text = timeRemaining,
+                    style = countdownStyle,
+                    color = countdownColor,
+                    textAlign = TextAlign.Center,
                 )
             }
         }
     }
 }
 
-private fun playAlarmSound(context: Context, mediaPlayer: MediaPlayer) {
+private fun playAlarmSoundCountdown(context: Context, mediaPlayer: MediaPlayer) {
     try {
         if (mediaPlayer.isPlaying) {
             mediaPlayer.stop()

@@ -1,6 +1,7 @@
 package com.example.baiturrahman.ui.components
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -12,27 +13,28 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.baiturrahman.R
+import com.example.baiturrahman.ui.theme.DarkBackground
 import com.example.baiturrahman.ui.theme.EmeraldGreen
-import com.example.baiturrahman.ui.theme.GlassWhite
-import com.example.baiturrahman.ui.theme.TextSecondary
-import kotlinx.coroutines.launch
+import com.example.baiturrahman.ui.theme.Foreground
+import kotlinx.coroutines.delay
 
 @Composable
 fun ImageSlider(
@@ -41,45 +43,52 @@ fun ImageSlider(
     onIndexChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val pagerState = rememberPagerState(
-        initialPage = currentIndex,
-        pageCount = { maxOf(1, images.size) }
-    )
-    val coroutineScope = rememberCoroutineScope()
+    var internalIndex by remember { mutableIntStateOf(currentIndex) }
 
+    // Auto-advance every 8 seconds
+    LaunchedEffect(images.size) {
+        if (images.size > 1) {
+            while (true) {
+                delay(8000)
+                val next = (internalIndex + 1) % images.size
+                internalIndex = next
+                onIndexChange(next)
+            }
+        }
+    }
+
+    // Sync with external index changes
     LaunchedEffect(currentIndex) {
-        if (pagerState.currentPage != currentIndex && images.isNotEmpty()) {
-            pagerState.animateScrollToPage(currentIndex)
+        if (internalIndex != currentIndex) {
+            internalIndex = currentIndex
         }
     }
 
-    LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage != currentIndex && images.isNotEmpty()) {
-            onIndexChange(pagerState.currentPage)
-        }
-    }
-
-    Box(modifier = modifier) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-            Box(
+    Box(
+        modifier = modifier.clip(RoundedCornerShape(16.dp))
+    ) {
+        // Crossfade images
+        if (images.isEmpty()) {
+            Image(
+                painter = painterResource(id = R.drawable.mosque),
+                contentDescription = "Gambar Masjid Default",
                 modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                if (images.isEmpty()) {
-                    Image(
-                        painter = painterResource(id = R.drawable.mosque),
-                        contentDescription = "Gambar Masjid Default",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            images.forEachIndexed { index, imageUrl ->
+                val alpha by animateFloatAsState(
+                    targetValue = if (index == internalIndex) 1f else 0f,
+                    animationSpec = tween(durationMillis = 1000),
+                    label = "crossfade_$index"
+                )
+                if (alpha > 0f) {
                     SupabaseImage(
-                        imageUrl = images[page],
-                        contentDescription = "Mosque Image ${page + 1}",
-                        modifier = Modifier.fillMaxSize(),
+                        imageUrl = imageUrl,
+                        contentDescription = "Mosque Image ${index + 1}",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer { this.alpha = alpha },
                         contentScale = ContentScale.Crop,
                         fallbackResourceId = null
                     )
@@ -87,53 +96,49 @@ fun ImageSlider(
             }
         }
 
-        // Vignette overlay (top)
+        // Bottom gradient overlay
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.3f),
                             Color.Transparent,
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.3f)
+                            DarkBackground.copy(alpha = 0.6f)
                         )
                     )
                 )
         )
 
-        // Indicators
+        // Dot indicators at bottom
         if (images.size > 1) {
             Row(
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(16.dp)
-                    .background(GlassWhite, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 repeat(images.size) { index ->
-                    val isSelected = index == pagerState.currentPage
+                    val isSelected = index == internalIndex
                     val width by animateDpAsState(
-                        targetValue = if (isSelected) 16.dp else 6.dp,
-                        animationSpec = tween(durationMillis = STANDARD_DURATION),
-                        label = "indicator_width"
+                        targetValue = if (isSelected) 24.dp else 8.dp,
+                        animationSpec = tween(durationMillis = 300),
+                        label = "dot_width"
                     )
 
                     Box(
                         modifier = Modifier
                             .width(width)
-                            .height(6.dp)
+                            .height(8.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isSelected) EmeraldGreen else TextSecondary.copy(alpha = 0.5f)
+                                if (isSelected) EmeraldGreen else Foreground.copy(alpha = 0.3f)
                             )
                             .clickable {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(index)
-                                }
+                                internalIndex = index
+                                onIndexChange(index)
                             }
                     )
                 }
