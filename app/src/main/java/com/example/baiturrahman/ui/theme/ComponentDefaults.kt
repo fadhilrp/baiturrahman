@@ -5,12 +5,15 @@ import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 
 @Composable
-fun mosqueTextFieldColors(): TextFieldColors = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = EmeraldGreen,
-    unfocusedBorderColor = GlassBorder,
-    focusedLabelColor = EmeraldGreen,
-    unfocusedLabelColor = TextSecondary,
-    cursorColor = EmeraldGreen,
-    focusedTextColor = TextPrimary,
-    unfocusedTextColor = TextPrimary
-)
+fun mosqueTextFieldColors(): TextFieldColors {
+    val c = LocalAppColors.current
+    return OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = EmeraldGreen,
+        unfocusedBorderColor = c.glassBorder,
+        focusedLabelColor = EmeraldGreen,
+        unfocusedLabelColor = c.textSecondary,
+        cursorColor = EmeraldGreen,
+        focusedTextColor = c.textPrimary,
+        unfocusedTextColor = c.textPrimary
+    )
+}

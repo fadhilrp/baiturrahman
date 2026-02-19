@@ -34,16 +34,14 @@ import androidx.compose.ui.unit.sp
 import com.example.baiturrahman.R
 import com.example.baiturrahman.data.model.PrayerTimings
 import com.example.baiturrahman.ui.theme.ActivePrayerBg
-import com.example.baiturrahman.ui.theme.Border
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.Foreground
 import com.example.baiturrahman.ui.theme.GoldAccent
 import com.example.baiturrahman.ui.theme.GoldMuted
 import com.example.baiturrahman.ui.theme.JetBrainsMono
+import com.example.baiturrahman.ui.theme.LocalAppColors
 import com.example.baiturrahman.ui.theme.MutedForeground
-import com.example.baiturrahman.ui.theme.NextPrayerBg
 import com.example.baiturrahman.ui.theme.PlusJakartaSans
-import com.example.baiturrahman.ui.theme.Secondary
 import com.example.baiturrahman.ui.theme.SecondaryForeground
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
@@ -55,6 +53,7 @@ fun PrayerTimesGrid(
     timings: PrayerTimings?,
     isMobile: Boolean = false
 ) {
+    val c = LocalAppColors.current
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
     var isIqomahTime by remember { mutableStateOf(false) }
@@ -213,13 +212,15 @@ private fun PrayerTimeCard(
     isMobile: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val c = LocalAppColors.current
+
     // Animated colors for smooth transitions (500ms to match web)
     val backgroundColor by animateColorAsState(
         targetValue = when {
             isIqomahTime -> GoldMuted
             isActive -> ActivePrayerBg
-            isNext -> NextPrayerBg
-            else -> Secondary.copy(alpha = 0.5f)
+            isNext -> c.secondary
+            else -> c.secondary.copy(alpha = 0.5f)
         },
         animationSpec = tween(durationMillis = 500),
         label = "card_bg"
@@ -230,7 +231,7 @@ private fun PrayerTimeCard(
             isIqomahTime -> GoldAccent
             isActive -> EmeraldGreen.copy(alpha = 0.4f)
             isNext -> EmeraldGreen.copy(alpha = 0.2f)
-            else -> Border.copy(alpha = 0.5f)
+            else -> c.border.copy(alpha = 0.5f)
         },
         animationSpec = tween(durationMillis = 500),
         label = "card_border"

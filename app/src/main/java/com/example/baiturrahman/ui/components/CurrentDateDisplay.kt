@@ -24,13 +24,14 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.ui.theme.EmeraldGreen
-import com.example.baiturrahman.ui.theme.TextPrimary
+import com.example.baiturrahman.ui.theme.LocalAppColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @Composable
 fun CurrentDateDisplay(prayerData: PrayerData?) {
+    val c = LocalAppColors.current
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
     val isMobile = screenWidth < 600
@@ -92,7 +93,7 @@ fun CurrentDateDisplay(prayerData: PrayerData?) {
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 1.sp
             ),
-            color = TextPrimary.copy(alpha = 0.9f),
+            color = c.textPrimary.copy(alpha = 0.9f),
         )
 
         Spacer(modifier = Modifier.height(4.dp))

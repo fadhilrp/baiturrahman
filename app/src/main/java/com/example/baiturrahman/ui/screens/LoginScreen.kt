@@ -51,11 +51,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.baiturrahman.ui.theme.DarkBackground
-import com.example.baiturrahman.ui.theme.DarkSurface
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.EmeraldLight
-import com.example.baiturrahman.ui.theme.TextSecondary
+import com.example.baiturrahman.ui.theme.LocalAppColors
 import com.example.baiturrahman.ui.theme.mosqueTextFieldColors
 import com.example.baiturrahman.ui.viewmodel.AuthViewModel
 
@@ -65,6 +63,7 @@ fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onBack: () -> Unit = {}
 ) {
+    val c = LocalAppColors.current
     val isLoading by authViewModel.isLoading.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
 
@@ -87,7 +86,7 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground),
+            .background(c.background),
         contentAlignment = Alignment.Center
     ) {
         IconButton(
@@ -99,7 +98,7 @@ fun LoginScreen(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Kembali",
-                tint = TextSecondary
+                tint = c.textSecondary
             )
         }
 
@@ -113,7 +112,7 @@ fun LoginScreen(
                 .widthIn(max = 480.dp)
                 .fillMaxWidth()
                 .padding(24.dp),
-            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            colors = CardDefaults.cardColors(containerColor = c.surface),
             shape = RoundedCornerShape(12.dp)
         ) {
             Column(
@@ -131,7 +130,7 @@ fun LoginScreen(
                 Text(
                     text = "Baiturrahman Dashboard",
                     fontSize = 14.sp,
-                    color = TextSecondary
+                    color = c.textSecondary
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -177,7 +176,7 @@ fun LoginScreen(
                                 imageVector = if (passwordVisible) Icons.Default.Visibility
                                               else Icons.Default.VisibilityOff,
                                 contentDescription = "Tampilkan kata sandi",
-                                tint = TextSecondary
+                                tint = c.textSecondary
                             )
                         }
                     },
@@ -211,7 +210,7 @@ fun LoginScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Belum punya akun?", color = TextSecondary, fontSize = 14.sp)
+                    Text("Belum punya akun?", color = c.textSecondary, fontSize = 14.sp)
                     TextButton(
                         onClick = onNavigateToRegister,
                         colors = ButtonDefaults.textButtonColors(contentColor = EmeraldGreen)

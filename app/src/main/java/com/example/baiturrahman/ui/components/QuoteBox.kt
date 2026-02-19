@@ -18,17 +18,15 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.baiturrahman.ui.theme.Border
 import com.example.baiturrahman.ui.theme.EmeraldGreen
-import com.example.baiturrahman.ui.theme.Foreground
-import com.example.baiturrahman.ui.theme.MutedForeground
-import com.example.baiturrahman.ui.theme.Secondary
+import com.example.baiturrahman.ui.theme.LocalAppColors
 
 @Composable
 fun QuoteBox(
     quote: String = "\"Lorem ipsum dolor sit amet.\"",
     modifier: Modifier = Modifier
 ) {
+    val c = LocalAppColors.current
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
     val isMobile = screenWidth < 600
@@ -44,8 +42,8 @@ fun QuoteBox(
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(Secondary.copy(alpha = 0.4f), shape)
-            .border(1.dp, Border.copy(alpha = 0.4f), shape)
+            .background(c.secondary.copy(alpha = 0.4f), shape)
+            .border(1.dp, c.border.copy(alpha = 0.4f), shape)
             .padding(
                 horizontal = if (isMobile) 16.dp else 16.dp,
                 vertical = if (isMobile) 14.dp else 12.dp
@@ -62,7 +60,7 @@ fun QuoteBox(
         // Quote text
         Text(
             text = quoteText,
-            color = Foreground.copy(alpha = 0.8f),
+            color = c.foreground.copy(alpha = 0.8f),
             fontStyle = FontStyle.Italic,
             style = MaterialTheme.typography.bodyLarge.copy(
                 lineHeight = 24.sp
@@ -76,7 +74,7 @@ fun QuoteBox(
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = attribution,
-                color = MutedForeground,
+                color = c.mutedForeground,
                 style = MaterialTheme.typography.bodySmall,
             )
         }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -31,9 +32,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.baiturrahman.R
-import com.example.baiturrahman.ui.theme.DarkBackground
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.Foreground
+import com.example.baiturrahman.ui.theme.LocalAppColors
 
 @Composable
 fun ImageSlider(
@@ -42,6 +43,7 @@ fun ImageSlider(
     onIndexChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val c = LocalAppColors.current
     var internalIndex by remember { mutableIntStateOf(currentIndex) }
 
     // Sync with external index changes
@@ -83,7 +85,7 @@ fun ImageSlider(
             }
         }
 
-        // Bottom gradient overlay
+        // Bottom gradient overlay (for NextPrayerCountdown readability)
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -92,18 +94,33 @@ fun ImageSlider(
                         colors = listOf(
                             Color.Transparent,
                             Color.Transparent,
-                            DarkBackground.copy(alpha = 0.6f)
+                            c.background.copy(alpha = 0.6f)
                         )
                     )
                 )
         )
 
-        // Dot indicators at bottom
+        // Top gradient overlay (for dot readability)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.35f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
+
+        // Dot indicators at top
         if (images.size > 1) {
             Row(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp),
+                    .align(Alignment.TopCenter)
+                    .padding(top = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

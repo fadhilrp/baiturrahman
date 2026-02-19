@@ -24,9 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.baiturrahman.ui.theme.Border
-import com.example.baiturrahman.ui.theme.DarkBackground
-import com.example.baiturrahman.ui.theme.MutedForeground
+import com.example.baiturrahman.ui.theme.LocalAppColors
 import com.example.baiturrahman.ui.theme.PlusJakartaSans
 import kotlinx.coroutines.delay
 
@@ -34,6 +32,7 @@ import kotlinx.coroutines.delay
 fun MarqueeText(
     text: String = "Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling",
 ) {
+    val c = LocalAppColors.current
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
     val isMobile = screenWidth < 600
@@ -63,13 +62,13 @@ fun MarqueeText(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter),
             thickness = 1.dp,
-            color = Border.copy(alpha = 0.3f)
+            color = c.border.copy(alpha = 0.3f)
         )
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(DarkBackground.copy(alpha = 0.8f))
+                .background(c.background.copy(alpha = 0.8f))
                 .height(if (isMobile) 35.dp else 40.dp)
         ) {
             Text(
@@ -80,7 +79,7 @@ fun MarqueeText(
                     fontWeight = FontWeight.Normal,
                     letterSpacing = 1.sp,
                 ),
-                color = MutedForeground,
+                color = c.mutedForeground,
                 textAlign = TextAlign.Left,
                 maxLines = 1,
                 overflow = TextOverflow.Visible,

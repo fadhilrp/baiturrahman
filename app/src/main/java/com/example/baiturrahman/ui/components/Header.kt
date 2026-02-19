@@ -25,10 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.baiturrahman.R
-import com.example.baiturrahman.ui.theme.Border
-import com.example.baiturrahman.ui.theme.Foreground
-import com.example.baiturrahman.ui.theme.MutedForeground
-import com.example.baiturrahman.ui.theme.Secondary
+import com.example.baiturrahman.ui.theme.LocalAppColors
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -36,6 +33,7 @@ import org.koin.androidx.compose.koinViewModel
 fun Header(
     viewModel: MosqueDashboardViewModel = koinViewModel()
 ) {
+    val c = LocalAppColors.current
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
     val isMobile = screenWidth < 600
@@ -51,8 +49,8 @@ fun Header(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(Secondary.copy(alpha = 0.7f), shape)
-            .border(1.dp, Border.copy(alpha = 0.5f), shape)
+            .background(c.secondary.copy(alpha = 0.7f), shape)
+            .border(1.dp, c.border.copy(alpha = 0.5f), shape)
             .padding(horizontal = if (isMobile) 12.dp else 16.dp, vertical = if (isMobile) 10.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -65,7 +63,7 @@ fun Header(
                 modifier = Modifier
                     .size(logoSize)
                     .clip(logoShape)
-                    .background(Foreground.copy(alpha = 0.9f), logoShape),
+                    .background(c.foreground.copy(alpha = 0.9f), logoShape),
                 fallbackResourceId = R.drawable.logo2
             )
         } else {
@@ -75,7 +73,7 @@ fun Header(
                 modifier = Modifier
                     .size(logoSize)
                     .clip(logoShape)
-                    .background(Foreground.copy(alpha = 0.9f), logoShape)
+                    .background(c.foreground.copy(alpha = 0.9f), logoShape)
             )
         }
 
@@ -88,12 +86,12 @@ fun Header(
                     fontSize = if (isMobile) 18.sp else 22.sp,
                     fontWeight = FontWeight.Bold,
                 ),
-                color = Foreground
+                color = c.foreground
             )
             Text(
                 text = mosqueLocation,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MutedForeground
+                color = c.mutedForeground
             )
         }
     }

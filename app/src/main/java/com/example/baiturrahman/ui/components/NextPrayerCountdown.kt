@@ -36,10 +36,9 @@ import com.example.baiturrahman.R
 import com.example.baiturrahman.data.model.PrayerTimings
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.Foreground
-import com.example.baiturrahman.ui.theme.GlassBorder
-import com.example.baiturrahman.ui.theme.GlassWhite
 import com.example.baiturrahman.ui.theme.GoldAccent
 import com.example.baiturrahman.ui.theme.JetBrainsMono
+import com.example.baiturrahman.ui.theme.LocalAppColors
 import com.example.baiturrahman.ui.theme.PlusJakartaSans
 import com.example.baiturrahman.ui.theme.TextOnAccent
 import kotlinx.coroutines.delay
@@ -52,6 +51,7 @@ fun NextPrayerCountdown(
     timings: PrayerTimings?,
     modifier: Modifier = Modifier
 ) {
+    val c = LocalAppColors.current
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
     val isMobile = screenWidth < 600
@@ -144,7 +144,7 @@ fun NextPrayerCountdown(
 
     // Animated colors
     val nameColor by animateColorAsState(
-        targetValue = if (isIqomahTime) GoldAccent else EmeraldGreen,
+        targetValue = if (isIqomahTime) TextOnAccent else EmeraldGreen,
         animationSpec = tween(durationMillis = STANDARD_DURATION),
         label = "countdown_name"
     )
@@ -163,13 +163,13 @@ fun NextPrayerCountdown(
     )
 
     val bgColor by animateColorAsState(
-        targetValue = if (isIqomahTime) GoldAccent.copy(alpha = 0.85f) else GlassWhite,
+        targetValue = if (isIqomahTime) GoldAccent.copy(alpha = 0.85f) else c.glassWhite,
         animationSpec = tween(durationMillis = STANDARD_DURATION),
         label = "countdown_bg"
     )
 
     val borderColor by animateColorAsState(
-        targetValue = if (isIqomahTime) GoldAccent else GlassBorder,
+        targetValue = if (isIqomahTime) GoldAccent else c.glassBorder,
         animationSpec = tween(durationMillis = STANDARD_DURATION),
         label = "countdown_border"
     )

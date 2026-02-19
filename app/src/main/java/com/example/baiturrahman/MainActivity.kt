@@ -11,16 +11,19 @@ import com.example.baiturrahman.ui.screens.MosqueDashboard
 import com.example.baiturrahman.ui.theme.BaiturrahmanTheme
 import com.example.baiturrahman.ui.viewmodel.AuthViewModel
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
+import com.example.baiturrahman.utils.AccountPreferences
 import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
     private val syncService: SupabaseSyncService by inject()
+    private val accountPreferences: AccountPreferences by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            BaiturrahmanTheme {
+            val isDark by accountPreferences.isDarkThemeFlow.collectAsState()
+            BaiturrahmanTheme(darkTheme = isDark) {
                 val authViewModel: AuthViewModel = koinViewModel()
                 val dashboardViewModel: MosqueDashboardViewModel = koinViewModel()
 

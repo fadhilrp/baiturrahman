@@ -20,7 +20,18 @@ class AccountPreferences(context: Context) {
         private const val KEY_DEVICE_IDENTIFIER = "device_identifier"
         private const val KEY_DEVICE_LABEL = "device_label"
         private const val KEY_USERNAME = "username"
+        private const val KEY_DARK_THEME = "dark_theme"
     }
+
+    private val _isDarkThemeFlow = MutableStateFlow(prefs.getBoolean(KEY_DARK_THEME, true))
+    val isDarkThemeFlow: StateFlow<Boolean> = _isDarkThemeFlow.asStateFlow()
+
+    var isDarkTheme: Boolean
+        get() = prefs.getBoolean(KEY_DARK_THEME, true)
+        set(value) {
+            prefs.edit { putBoolean(KEY_DARK_THEME, value) }
+            _isDarkThemeFlow.value = value
+        }
 
     // Reactive session token flow — AuthViewModel observes this to update isLoggedIn
     private val _sessionTokenFlow = MutableStateFlow(prefs.getString(KEY_SESSION_TOKEN, null))

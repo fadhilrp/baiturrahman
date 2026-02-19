@@ -51,6 +51,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -78,18 +80,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.baiturrahman.ui.components.SupabaseImage
-import com.example.baiturrahman.ui.theme.DarkBackground
-import com.example.baiturrahman.ui.theme.DarkSurface
+import com.example.baiturrahman.ui.theme.EmeraldDark
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.EmeraldLight
 import com.example.baiturrahman.ui.theme.GlassBorder
-import com.example.baiturrahman.ui.theme.TextPrimary
-import com.example.baiturrahman.ui.theme.TextSecondary
+import com.example.baiturrahman.ui.theme.LocalAppColors
 import com.example.baiturrahman.ui.theme.mosqueTextFieldColors
 import com.example.baiturrahman.ui.viewmodel.AuthViewModel
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
+import com.example.baiturrahman.utils.AccountPreferences
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,6 +100,8 @@ fun AdminDashboard(
     authViewModel: AuthViewModel = koinViewModel(),
     onClose: () -> Unit
 ) {
+    val c = LocalAppColors.current
+    val accountPreferences: AccountPreferences = koinInject()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -119,6 +123,7 @@ fun AdminDashboard(
     val isOffline by viewModel.isOffline.collectAsState()
     val connectedDevices by viewModel.connectedDevices.collectAsState()
     val currentUsername: String? by authViewModel.currentUsername.collectAsState()
+    val isDarkTheme by accountPreferences.isDarkThemeFlow.collectAsState()
 
     // Change password state
     var showChangePassword by remember { mutableStateOf(false) }
@@ -170,7 +175,7 @@ fun AdminDashboard(
     val textFieldColors = mosqueTextFieldColors()
 
     Scaffold(
-        containerColor = DarkBackground,
+        containerColor = c.background,
         topBar = {
             Column {
                 TopAppBar(
@@ -184,7 +189,7 @@ fun AdminDashboard(
                                     Text(
                                         text = currentUsername!!,
                                         fontSize = 12.sp,
-                                        color = TextSecondary,
+                                        color = c.textSecondary,
                                         fontWeight = FontWeight.Normal
                                     )
                                 }
@@ -197,9 +202,9 @@ fun AdminDashboard(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = DarkSurface,
-                        titleContentColor = TextPrimary,
-                        navigationIconContentColor = TextPrimary
+                        containerColor = c.surface,
+                        titleContentColor = c.textPrimary,
+                        navigationIconContentColor = c.textPrimary
                     )
                 )
                 // Offline banner
@@ -246,7 +251,7 @@ fun AdminDashboard(
                         IconButton(onClick = { oldPasswordVisible = !oldPasswordVisible }) {
                             Icon(
                                 if (oldPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = null, tint = TextSecondary
+                                contentDescription = null, tint = c.textSecondary
                             )
                         }
                     }
@@ -266,7 +271,7 @@ fun AdminDashboard(
                         IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
                             Icon(
                                 if (newPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = null, tint = TextSecondary
+                                contentDescription = null, tint = c.textSecondary
                             )
                         }
                     }
@@ -286,7 +291,7 @@ fun AdminDashboard(
                         IconButton(onClick = { confirmNewPasswordVisible = !confirmNewPasswordVisible }) {
                             Icon(
                                 if (confirmNewPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = null, tint = TextSecondary
+                                contentDescription = null, tint = c.textSecondary
                             )
                         }
                     },
@@ -355,7 +360,7 @@ fun AdminDashboard(
                                 "${mosqueName.length}/35",
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = TextAlign.End,
-                                color = if (mosqueName.length >= 35) Color.Red else TextSecondary
+                                color = if (mosqueName.length >= 35) Color.Red else c.textSecondary
                             )
                         },
                         isError = mosqueName.length >= 35
@@ -372,17 +377,17 @@ fun AdminDashboard(
                                 "${mosqueLocation.length}/25",
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = TextAlign.End,
-                                color = if (mosqueLocation.length >= 25) Color.Red else TextSecondary
+                                color = if (mosqueLocation.length >= 25) Color.Red else c.textSecondary
                             )
                         },
                         isError = mosqueLocation.length >= 25
                     )
 
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Logo Masjid:", fontWeight = FontWeight.Medium, color = TextPrimary)
+                        Text("Logo Masjid:", fontWeight = FontWeight.Medium, color = c.textPrimary)
                         Text(
                             "Logo yang diupload otomatis tersimpan ke semua perangkat.",
-                            color = TextSecondary, fontSize = 13.sp
+                            color = c.textSecondary, fontSize = 13.sp
                         )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -406,10 +411,10 @@ fun AdminDashboard(
                                         .size(72.dp)
                                         .clip(RoundedCornerShape(8.dp))
                                         .border(1.dp, GlassBorder, RoundedCornerShape(8.dp))
-                                        .background(DarkBackground),
+                                        .background(c.background),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("Belum ada", color = TextSecondary, fontSize = 10.sp, textAlign = TextAlign.Center)
+                                    Text("Belum ada", color = c.textSecondary, fontSize = 10.sp, textAlign = TextAlign.Center)
                                 }
                             }
                             Button(
@@ -444,11 +449,11 @@ fun AdminDashboard(
                         label = { Text("Alamat Waktu Sholat") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = textFieldColors,
-                        placeholder = { Text("contoh: Lebak Bulus, Jakarta, ID", color = TextSecondary) }
+                        placeholder = { Text("contoh: Lebak Bulus, Jakarta, ID", color = c.textSecondary) }
                     )
 
                     Column {
-                        Text("Zona Waktu:", fontWeight = FontWeight.Medium, color = TextPrimary, modifier = Modifier.padding(bottom = 8.dp))
+                        Text("Zona Waktu:", fontWeight = FontWeight.Medium, color = c.textPrimary, modifier = Modifier.padding(bottom = 8.dp))
                         Box(modifier = Modifier.fillMaxWidth()) {
                             Row(
                                 modifier = Modifier
@@ -459,8 +464,8 @@ fun AdminDashboard(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(prayerTimezone, color = TextPrimary)
-                                Icon(Icons.Default.ArrowDropDown, "Pilih Zona Waktu", tint = TextSecondary)
+                                Text(prayerTimezone, color = c.textPrimary)
+                                Icon(Icons.Default.ArrowDropDown, "Pilih Zona Waktu", tint = c.textSecondary)
                             }
                             DropdownMenu(
                                 expanded = timezoneMenuExpanded,
@@ -493,7 +498,7 @@ fun AdminDashboard(
                             "${quoteText.length}/100",
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.End,
-                            color = if (quoteText.length >= 100) Color.Red else TextSecondary
+                            color = if (quoteText.length >= 100) Color.Red else c.textSecondary
                         )
                     },
                     isError = quoteText.length >= 100
@@ -505,7 +510,7 @@ fun AdminDashboard(
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
                         "Gambar yang diupload otomatis tersinkronisasi ke semua perangkat.",
-                        color = TextSecondary, fontSize = 13.sp
+                        color = c.textSecondary, fontSize = 13.sp
                     )
 
                     if (mosqueImages.isNotEmpty()) {
@@ -533,7 +538,7 @@ fun AdminDashboard(
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
                                             .size(32.dp)
-                                            .background(DarkBackground.copy(alpha = 0.7f), CircleShape)
+                                            .background(c.background.copy(alpha = 0.7f), CircleShape)
                                     ) {
                                         Icon(Icons.Default.Close, "Hapus", tint = Color.Red, modifier = Modifier.size(16.dp))
                                     }
@@ -541,10 +546,10 @@ fun AdminDashboard(
                                         modifier = Modifier
                                             .align(Alignment.BottomStart)
                                             .padding(4.dp)
-                                            .background(DarkBackground.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
+                                            .background(c.background.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
                                             .padding(horizontal = 8.dp, vertical = 2.dp)
                                     ) {
-                                        Text("${index + 1}", color = TextPrimary, fontSize = 12.sp)
+                                        Text("${index + 1}", color = c.textPrimary, fontSize = 12.sp)
                                     }
                                 }
                             }
@@ -570,7 +575,7 @@ fun AdminDashboard(
                             }
                         }
                     } else {
-                        Text("Jumlah maksimum gambar tercapai (5/5)", color = TextSecondary, fontSize = 14.sp)
+                        Text("Jumlah maksimum gambar tercapai (5/5)", color = c.textSecondary, fontSize = 14.sp)
                     }
                 }
             }
@@ -588,11 +593,30 @@ fun AdminDashboard(
                             "${marqueeText.length}/100",
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.End,
-                            color = if (marqueeText.length >= 100) Color.Red else TextSecondary
+                            color = if (marqueeText.length >= 100) Color.Red else c.textSecondary
                         )
                     },
                     isError = marqueeText.length >= 100
                 )
+            }
+
+            // Theme Toggle Section
+            AdminSection(title = "Tema Tampilan") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Mode Gelap", color = c.textPrimary)
+                    Switch(
+                        checked = isDarkTheme,
+                        onCheckedChange = { accountPreferences.isDarkTheme = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = EmeraldGreen,
+                            checkedTrackColor = EmeraldDark
+                        )
+                    )
+                }
             }
 
             // Save settings button
@@ -630,7 +654,7 @@ fun AdminDashboard(
             AdminSection(title = "Perangkat Terhubung") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (connectedDevices.isEmpty()) {
-                        Text("Memuat daftar perangkat...", color = TextSecondary, fontSize = 14.sp)
+                        Text("Memuat daftar perangkat...", color = c.textSecondary, fontSize = 14.sp)
                     } else {
                         connectedDevices.forEachIndexed { index, session ->
                             if (index > 0) HorizontalDivider(color = GlassBorder)
@@ -643,7 +667,7 @@ fun AdminDashboard(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             session.deviceLabel,
-                                            color = TextPrimary,
+                                            color = c.textPrimary,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Medium
                                         )
@@ -658,7 +682,7 @@ fun AdminDashboard(
                                     }
                                     Text(
                                         "Terakhir aktif: ${formatLastSeen(session.lastSeenAt)}",
-                                        color = TextSecondary,
+                                        color = c.textSecondary,
                                         fontSize = 12.sp
                                     )
                                 }
@@ -686,13 +710,13 @@ fun AdminDashboard(
             // Change Password Button
             Button(
                 onClick = { showChangePassword = true },
-                colors = ButtonDefaults.buttonColors(containerColor = DarkSurface),
+                colors = ButtonDefaults.buttonColors(containerColor = c.surface),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().border(1.dp, GlassBorder, RoundedCornerShape(12.dp))
             ) {
                 Icon(Icons.Default.Edit, contentDescription = null, tint = EmeraldGreen)
                 Spacer(Modifier.width(8.dp))
-                Text("Ubah Kata Sandi", color = TextPrimary)
+                Text("Ubah Kata Sandi", color = c.textPrimary)
             }
 
             // Logout Button
@@ -728,6 +752,7 @@ fun AdminSection(
     title: String,
     content: @Composable () -> Unit
 ) {
+    val c = LocalAppColors.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = title,
@@ -739,7 +764,7 @@ fun AdminSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .border(1.dp, GlassBorder, RoundedCornerShape(12.dp)),
-            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            colors = CardDefaults.cardColors(containerColor = c.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             shape = RoundedCornerShape(12.dp)
         ) {

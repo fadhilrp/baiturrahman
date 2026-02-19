@@ -26,11 +26,8 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.example.baiturrahman.R
 import com.example.baiturrahman.ui.components.*
-import com.example.baiturrahman.ui.theme.Border
-import com.example.baiturrahman.ui.theme.DarkBackground
 import com.example.baiturrahman.ui.theme.EmeraldGreen
-import com.example.baiturrahman.ui.theme.GlassWhite
-import com.example.baiturrahman.ui.theme.Secondary
+import com.example.baiturrahman.ui.theme.LocalAppColors
 import com.example.baiturrahman.ui.viewmodel.AuthViewModel
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -40,6 +37,7 @@ fun MosqueDashboard(
     viewModel: MosqueDashboardViewModel = koinViewModel(),
     authViewModel: AuthViewModel = koinViewModel()
 ) {
+    val c = LocalAppColors.current
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
     val screenHeight = configuration.screenHeightDp
@@ -90,7 +88,7 @@ fun MosqueDashboard(
             )
         }
     } else {
-        Box(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
+        Box(modifier = Modifier.fillMaxSize().background(c.background)) {
             // Islamic pattern background (tiled)
             val pattern = ImageBitmap.imageResource(R.drawable.islamic_pattern)
             Canvas(modifier = Modifier.fillMaxSize()) {
@@ -117,9 +115,9 @@ fun MosqueDashboard(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                DarkBackground.copy(alpha = 0.95f),
-                                DarkBackground.copy(alpha = 0.90f),
-                                DarkBackground.copy(alpha = 0.95f),
+                                c.background.copy(alpha = 0.95f),
+                                c.background.copy(alpha = 0.90f),
+                                c.background.copy(alpha = 0.95f),
                             )
                         )
                     )
@@ -153,7 +151,7 @@ fun MosqueDashboard(
                     .align(if (isMobile) Alignment.TopEnd else Alignment.TopStart)
                     .padding(16.dp)
                     .size(48.dp)
-                    .background(GlassWhite, shape = CircleShape)
+                    .background(c.glassWhite, shape = CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
@@ -172,6 +170,7 @@ private fun TvDashboardLayout(
     mosqueImages: List<String>,
     currentImageIndex: Int,
 ) {
+    val c = LocalAppColors.current
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -229,9 +228,9 @@ private fun TvDashboardLayout(
                             .fillMaxWidth()
                             .wrapContentHeight()
                             .clip(clockDateShape)
-                            .background(Secondary.copy(alpha = 0.4f), clockDateShape)
-                            .border(1.dp, Border.copy(alpha = 0.4f), clockDateShape)
-                            .padding(vertical = 8.dp),
+                            .background(c.secondary.copy(alpha = 0.4f), clockDateShape)
+                            .border(1.dp, c.border.copy(alpha = 0.4f), clockDateShape)
+                            .padding(top = 2.dp, bottom = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(
@@ -273,6 +272,7 @@ private fun MobileDashboardLayout(
     mosqueImages: List<String>,
     currentImageIndex: Int,
 ) {
+    val c = LocalAppColors.current
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -292,9 +292,9 @@ private fun MobileDashboardLayout(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(clockDateShape)
-                    .background(Secondary.copy(alpha = 0.4f), clockDateShape)
-                    .border(1.dp, Border.copy(alpha = 0.4f), clockDateShape)
-                    .padding(vertical = 12.dp),
+                    .background(c.secondary.copy(alpha = 0.4f), clockDateShape)
+                    .border(1.dp, c.border.copy(alpha = 0.4f), clockDateShape)
+                    .padding(top = 4.dp, bottom = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 CurrentTimeDisplay(uiState.prayerData)

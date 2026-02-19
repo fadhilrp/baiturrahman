@@ -24,14 +24,14 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.JetBrainsMono
-import com.example.baiturrahman.ui.theme.MutedForeground
-import com.example.baiturrahman.ui.theme.TextPrimary
+import com.example.baiturrahman.ui.theme.LocalAppColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @Composable
 fun CurrentTimeDisplay(prayerData: PrayerData?) {
+    val c = LocalAppColors.current
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
     val isMobile = screenWidth < 600
@@ -93,7 +93,7 @@ fun CurrentTimeDisplay(prayerData: PrayerData?) {
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-2).sp
             ),
-            color = TextPrimary,
+            color = c.textPrimary,
         )
         // Colon
         Text(
@@ -115,7 +115,7 @@ fun CurrentTimeDisplay(prayerData: PrayerData?) {
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-2).sp
             ),
-            color = TextPrimary,
+            color = c.textPrimary,
         )
         // Seconds (smaller, muted)
         Text(
@@ -125,7 +125,7 @@ fun CurrentTimeDisplay(prayerData: PrayerData?) {
                 fontSize = secondsSize,
                 fontWeight = FontWeight.Light,
             ),
-            color = MutedForeground,
+            color = c.mutedForeground,
             modifier = Modifier.padding(start = if (isMobile) 4.dp else 8.dp, bottom = if (isMobile) 4.dp else 8.dp)
         )
     }

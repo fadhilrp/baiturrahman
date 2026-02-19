@@ -56,11 +56,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.baiturrahman.ui.theme.DarkBackground
-import com.example.baiturrahman.ui.theme.DarkSurface
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.EmeraldLight
-import com.example.baiturrahman.ui.theme.TextSecondary
+import com.example.baiturrahman.ui.theme.LocalAppColors
 import com.example.baiturrahman.ui.theme.mosqueTextFieldColors
 import com.example.baiturrahman.ui.viewmodel.AuthViewModel
 
@@ -70,6 +68,7 @@ fun RegisterScreen(
     onNavigateToLogin: () -> Unit,
     onBack: () -> Unit = {}
 ) {
+    val c = LocalAppColors.current
     val isLoading by authViewModel.isLoading.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
     val usernameAvailable by authViewModel.usernameAvailable.collectAsState()
@@ -100,7 +99,7 @@ fun RegisterScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground),
+            .background(c.background),
         contentAlignment = Alignment.Center
     ) {
         IconButton(
@@ -112,7 +111,7 @@ fun RegisterScreen(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Kembali",
-                tint = TextSecondary
+                tint = c.textSecondary
             )
         }
 
@@ -126,7 +125,7 @@ fun RegisterScreen(
                 .widthIn(max = 480.dp)
                 .fillMaxWidth()
                 .padding(24.dp),
-            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            colors = CardDefaults.cardColors(containerColor = c.surface),
             shape = RoundedCornerShape(12.dp)
         ) {
             Column(
@@ -146,7 +145,7 @@ fun RegisterScreen(
                 Text(
                     text = "Buat akun baru",
                     fontSize = 14.sp,
-                    color = TextSecondary
+                    color = c.textSecondary
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -189,7 +188,7 @@ fun RegisterScreen(
                             true -> Text("Nama pengguna tersedia", color = EmeraldGreen, fontSize = 12.sp)
                             false -> Text("Nama pengguna sudah digunakan", color = Color.Red, fontSize = 12.sp)
                             null -> if (username.isNotBlank() && username.length < 3) {
-                                Text("Minimal 3 karakter", color = TextSecondary, fontSize = 12.sp)
+                                Text("Minimal 3 karakter", color = c.textSecondary, fontSize = 12.sp)
                             }
                         }
                     },
@@ -218,7 +217,7 @@ fun RegisterScreen(
                                 imageVector = if (passwordVisible) Icons.Default.Visibility
                                               else Icons.Default.VisibilityOff,
                                 contentDescription = "Tampilkan kata sandi",
-                                tint = TextSecondary
+                                tint = c.textSecondary
                             )
                         }
                     },
@@ -255,7 +254,7 @@ fun RegisterScreen(
                                 imageVector = if (confirmPasswordVisible) Icons.Default.Visibility
                                               else Icons.Default.VisibilityOff,
                                 contentDescription = "Tampilkan konfirmasi",
-                                tint = TextSecondary
+                                tint = c.textSecondary
                             )
                         }
                     },
@@ -295,7 +294,7 @@ fun RegisterScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Sudah punya akun?", color = TextSecondary, fontSize = 14.sp)
+                    Text("Sudah punya akun?", color = c.textSecondary, fontSize = 14.sp)
                     TextButton(
                         onClick = onNavigateToLogin,
                         colors = ButtonDefaults.textButtonColors(contentColor = EmeraldGreen)
