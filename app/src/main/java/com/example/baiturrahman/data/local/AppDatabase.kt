@@ -13,7 +13,7 @@ import com.example.baiturrahman.data.local.entity.MosqueSettings
 @Database(
     entities = [MosqueSettings::class, MosqueImage::class],
     version = 2,
-    exportSchema = true
+    exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun mosqueSettingsDao(): MosqueSettingsDao
@@ -27,15 +27,15 @@ abstract class AppDatabase : RoomDatabase() {
 
         // Migration from version 1 to 2 - add new fields to mosque_images
         private val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
-            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 Log.d(TAG, "Migrating database from version 1 to 2")
 
                 // Add new columns to mosque_images table
-                database.execSQL("ALTER TABLE mosque_images ADD COLUMN uploadDate INTEGER NOT NULL DEFAULT 0")
-                database.execSQL("ALTER TABLE mosque_images ADD COLUMN fileSize INTEGER NOT NULL DEFAULT 0")
-                database.execSQL("ALTER TABLE mosque_images ADD COLUMN mimeType TEXT NOT NULL DEFAULT 'image/jpeg'")
-                database.execSQL("ALTER TABLE mosque_images ADD COLUMN uploadStatus TEXT NOT NULL DEFAULT 'completed'")
-                database.execSQL("ALTER TABLE mosque_images ADD COLUMN supabaseId TEXT")
+                db.execSQL("ALTER TABLE mosque_images ADD COLUMN uploadDate INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE mosque_images ADD COLUMN fileSize INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE mosque_images ADD COLUMN mimeType TEXT NOT NULL DEFAULT 'image/jpeg'")
+                db.execSQL("ALTER TABLE mosque_images ADD COLUMN uploadStatus TEXT NOT NULL DEFAULT 'completed'")
+                db.execSQL("ALTER TABLE mosque_images ADD COLUMN supabaseId TEXT")
 
                 Log.d(TAG, "Migration completed successfully")
             }
@@ -50,7 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "baiturrahman_database"
                 )
                     .addMigrations(MIGRATION_1_2)
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance
                 Log.d(TAG, "Database instance created successfully")

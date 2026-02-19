@@ -10,7 +10,7 @@ object DateTimeUtils {
     }
 
     fun formatDateForDisplay(date: LocalDate): String {
-        return date.format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale("id")))
+        return date.format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.forLanguageTag("id")))
     }
 }
 

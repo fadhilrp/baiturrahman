@@ -4,6 +4,7 @@ import android.media.MediaPlayer
 import com.example.baiturrahman.data.model.PrayerTimings
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 val orderedPrayers = listOf("Imsak", "Shubuh", "Syuruq", "Dhuha", "Dzuhur", "Ashar", "Maghrib", "Isya")
 
@@ -16,7 +17,7 @@ fun buildPrayerTimes(timings: PrayerTimings?): Map<String, String> {
         "Dhuha" to (timings?.Sunrise?.substringBefore(" ")?.let {
             try {
                 LocalTime.parse(it, timeFormatter).plusMinutes(15).format(timeFormatter)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 "XX:XX"
             }
         } ?: "XX:XX"),
@@ -31,7 +32,7 @@ fun buildPrayerTimeObjects(prayerTimes: Map<String, String>): Map<String, LocalT
     return prayerTimes.mapValues { (_, timeStr) ->
         try {
             LocalTime.parse(timeStr)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
@@ -103,5 +104,5 @@ fun calculateTimeRemaining(currentTime: LocalTime, targetTime: LocalTime): Strin
     val minutes = (diffSeconds % 3600) / 60
     val seconds = diffSeconds % 60
 
-    return String.format("-%02d:%02d:%02d", hours, minutes, seconds)
+    return String.format(Locale.ROOT, "-%02d:%02d:%02d", hours, minutes, seconds)
 }

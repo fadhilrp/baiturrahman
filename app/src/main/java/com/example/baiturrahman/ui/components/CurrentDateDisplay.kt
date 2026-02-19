@@ -36,7 +36,7 @@ fun CurrentDateDisplay(prayerData: PrayerData?) {
     val screenWidth = configuration.screenWidthDp
     val isMobile = screenWidth < 600
 
-    val dateFormat = SimpleDateFormat("EEEE, d MMMM yyyy", Locale("id"))
+    val dateFormat = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.forLanguageTag("id"))
     var dateString by remember { mutableStateOf(dateFormat.format(Date())) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
