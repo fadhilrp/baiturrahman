@@ -304,16 +304,10 @@ class MosqueDashboardViewModel(
         }
     }
 
-    fun updatePrayerAddress(address: String) {
-        _prayerAddress.value = address
-        fetchPrayerTimes()
-    }
+    fun updatePrayerAddress(address: String) { _prayerAddress.value = address }
 
     fun updatePrayerTimezone(timezone: String) {
-        if (timezone in availableTimezones) {
-            _prayerTimezone.value = timezone
-            fetchPrayerTimes()
-        }
+        if (timezone in availableTimezones) _prayerTimezone.value = timezone
     }
 
     fun loadConnectedDevices() {

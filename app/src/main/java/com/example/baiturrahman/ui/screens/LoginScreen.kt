@@ -28,7 +28,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -56,9 +55,8 @@ import com.example.baiturrahman.ui.theme.DarkBackground
 import com.example.baiturrahman.ui.theme.DarkSurface
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.EmeraldLight
-import com.example.baiturrahman.ui.theme.GlassBorder
-import com.example.baiturrahman.ui.theme.TextPrimary
 import com.example.baiturrahman.ui.theme.TextSecondary
+import com.example.baiturrahman.ui.theme.mosqueTextFieldColors
 import com.example.baiturrahman.ui.viewmodel.AuthViewModel
 
 @Composable
@@ -84,15 +82,7 @@ fun LoginScreen(
         }
     }
 
-    val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = EmeraldGreen,
-        unfocusedBorderColor = GlassBorder,
-        focusedLabelColor = EmeraldGreen,
-        unfocusedLabelColor = TextSecondary,
-        cursorColor = EmeraldGreen,
-        focusedTextColor = TextPrimary,
-        unfocusedTextColor = TextPrimary
-    )
+    val textFieldColors = mosqueTextFieldColors()
 
     Box(
         modifier = Modifier
@@ -124,7 +114,7 @@ fun LoginScreen(
                 .fillMaxWidth()
                 .padding(24.dp),
             colors = CardDefaults.cardColors(containerColor = DarkSurface),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(12.dp)
         ) {
             Column(
                 modifier = Modifier.padding(32.dp),
@@ -222,8 +212,11 @@ fun LoginScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Belum punya akun?", color = TextSecondary, fontSize = 14.sp)
-                    TextButton(onClick = onNavigateToRegister) {
-                        Text("Daftar", color = EmeraldGreen, fontSize = 14.sp)
+                    TextButton(
+                        onClick = onNavigateToRegister,
+                        colors = ButtonDefaults.textButtonColors(contentColor = EmeraldGreen)
+                    ) {
+                        Text("Daftar", fontSize = 14.sp)
                     }
                 }
             }

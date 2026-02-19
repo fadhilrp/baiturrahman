@@ -34,7 +34,6 @@ import com.example.baiturrahman.R
 import com.example.baiturrahman.ui.theme.DarkBackground
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.Foreground
-import kotlinx.coroutines.delay
 
 @Composable
 fun ImageSlider(
@@ -44,18 +43,6 @@ fun ImageSlider(
     modifier: Modifier = Modifier
 ) {
     var internalIndex by remember { mutableIntStateOf(currentIndex) }
-
-    // Auto-advance every 8 seconds
-    LaunchedEffect(images.size) {
-        if (images.size > 1) {
-            while (true) {
-                delay(8000)
-                val next = (internalIndex + 1) % images.size
-                internalIndex = next
-                onIndexChange(next)
-            }
-        }
-    }
 
     // Sync with external index changes
     LaunchedEffect(currentIndex) {

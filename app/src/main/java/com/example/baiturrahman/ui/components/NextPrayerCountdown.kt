@@ -1,6 +1,5 @@
 package com.example.baiturrahman.ui.components
 
-import android.content.Context
 import android.media.MediaPlayer
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -41,14 +40,12 @@ import com.example.baiturrahman.ui.theme.GlassBorder
 import com.example.baiturrahman.ui.theme.GlassWhite
 import com.example.baiturrahman.ui.theme.GoldAccent
 import com.example.baiturrahman.ui.theme.JetBrainsMono
-import com.example.baiturrahman.ui.theme.MutedForeground
 import com.example.baiturrahman.ui.theme.PlusJakartaSans
 import com.example.baiturrahman.ui.theme.TextOnAccent
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.temporal.ChronoUnit
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun NextPrayerCountdown(
@@ -90,34 +87,8 @@ fun NextPrayerCountdown(
         currentTime.second
     )
 
-    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-
-    val prayerTimes = mapOf(
-        "Imsak" to (timings?.Imsak?.substringBefore(" ") ?: "XX:XX"),
-        "Shubuh" to (timings?.Fajr?.substringBefore(" ") ?: "XX:XX"),
-        "Syuruq" to (timings?.Sunrise?.substringBefore(" ") ?: "XX:XX"),
-        "Dhuha" to (timings?.Sunrise?.substringBefore(" ")?.let {
-            try {
-                LocalTime.parse(it, timeFormatter).plusMinutes(15).format(timeFormatter)
-            } catch (e: Exception) {
-                "XX:XX"
-            }
-        }  ?: "XX:XX"),
-        "Dzuhur" to (timings?.Dhuhr?.substringBefore(" ") ?: "XX:XX"),
-        "Ashar" to (timings?.Asr?.substringBefore(" ") ?: "XX:XX"),
-        "Maghrib" to (timings?.Maghrib?.substringBefore(" ") ?: "XX:XX"),
-        "Isya" to (timings?.Isha?.substringBefore(" ") ?: "XX:XX")
-    )
-
-    val orderedPrayers = listOf("Imsak", "Shubuh", "Syuruq", "Dhuha", "Dzuhur", "Ashar", "Maghrib", "Isya")
-
-    val prayerTimeObjects = prayerTimes.mapValues { (_, timeStr) ->
-        try {
-            LocalTime.parse(timeStr)
-        } catch (e: Exception) {
-            null
-        }
-    }
+    val prayerTimes = buildPrayerTimes(timings)
+    val prayerTimeObjects = buildPrayerTimeObjects(prayerTimes)
 
     LaunchedEffect(currentTimeObj) {
         if (iqomahEndTime != null) {
@@ -146,14 +117,14 @@ fun NextPrayerCountdown(
 
     LaunchedEffect(shouldPlayPrayerAlarm) {
         if (shouldPlayPrayerAlarm) {
-            playAlarmSoundCountdown(context, prayerAlarmPlayer)
+            playAlarmSound(prayerAlarmPlayer)
             shouldPlayPrayerAlarm = false
         }
     }
 
     LaunchedEffect(shouldPlayIqomahAlarm) {
         if (shouldPlayIqomahAlarm) {
-            playAlarmSoundCountdown(context, iqomahAlarmPlayer)
+            playAlarmSound(iqomahAlarmPlayer)
             shouldPlayIqomahAlarm = false
         }
     }
@@ -266,73 +237,4 @@ fun NextPrayerCountdown(
             }
         }
     }
-}
-
-private fun playAlarmSoundCountdown(context: Context, mediaPlayer: MediaPlayer) {
-    try {
-        if (mediaPlayer.isPlaying) {
-            mediaPlayer.stop()
-            mediaPlayer.prepare()
-        }
-        mediaPlayer.start()
-    } catch (e: Exception) {
-        e.printStackTrace()
-    }
-}
-
-private fun findCurrentAndNextPrayer(
-    currentTime: LocalTime,
-    prayerTimes: Map<String, LocalTime?>,
-    orderedPrayers: List<String>
-): Pair<String, String> {
-    var currentPrayer = orderedPrayers.last()
-    var foundCurrent = false
-
-    val lastPrayer = orderedPrayers.last()
-    val lastPrayerTime = prayerTimes[lastPrayer]
-
-    if (lastPrayerTime != null && !currentTime.isBefore(lastPrayerTime)) {
-        currentPrayer = lastPrayer
-        foundCurrent = true
-    }
-
-    if (!foundCurrent) {
-        for (i in orderedPrayers.indices.reversed()) {
-            val prayer = orderedPrayers[i]
-            val prayerTime = prayerTimes[prayer]
-
-            if (prayerTime != null && !currentTime.isBefore(prayerTime)) {
-                currentPrayer = prayer
-                foundCurrent = true
-                break
-            }
-        }
-    }
-
-    if (!foundCurrent) {
-        currentPrayer = orderedPrayers.first()
-    }
-
-    val currentIndex = orderedPrayers.indexOf(currentPrayer)
-    val nextIndex = (currentIndex + 1) % orderedPrayers.size
-    val nextPrayer = orderedPrayers[nextIndex]
-
-    return Pair(currentPrayer, nextPrayer)
-}
-
-private fun calculateTimeRemaining(currentTime: LocalTime, targetTime: LocalTime): String {
-    var targetTimeSeconds = targetTime.toSecondOfDay()
-    val currentTimeSeconds = currentTime.toSecondOfDay()
-
-    if (targetTimeSeconds < currentTimeSeconds) {
-        targetTimeSeconds += 24 * 60 * 60
-    }
-
-    val diffSeconds = targetTimeSeconds - currentTimeSeconds
-
-    val hours = diffSeconds / 3600
-    val minutes = (diffSeconds % 3600) / 60
-    val seconds = diffSeconds % 60
-
-    return String.format("-%02d:%02d:%02d", hours, minutes, seconds)
 }

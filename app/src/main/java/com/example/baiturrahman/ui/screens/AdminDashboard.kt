@@ -48,7 +48,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -86,6 +85,7 @@ import com.example.baiturrahman.ui.theme.EmeraldLight
 import com.example.baiturrahman.ui.theme.GlassBorder
 import com.example.baiturrahman.ui.theme.TextPrimary
 import com.example.baiturrahman.ui.theme.TextSecondary
+import com.example.baiturrahman.ui.theme.mosqueTextFieldColors
 import com.example.baiturrahman.ui.viewmodel.AuthViewModel
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
 import kotlinx.coroutines.launch
@@ -127,6 +127,7 @@ fun AdminDashboard(
     var confirmNewPassword by remember { mutableStateOf("") }
     var oldPasswordVisible by remember { mutableStateOf(false) }
     var newPasswordVisible by remember { mutableStateOf(false) }
+    var confirmNewPasswordVisible by remember { mutableStateOf(false) }
     var isChangingPassword by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -166,15 +167,7 @@ fun AdminDashboard(
         }
     }
 
-    val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = EmeraldGreen,
-        unfocusedBorderColor = GlassBorder,
-        focusedLabelColor = EmeraldGreen,
-        unfocusedLabelColor = TextSecondary,
-        cursorColor = EmeraldGreen,
-        focusedTextColor = TextPrimary,
-        unfocusedTextColor = TextPrimary
-    )
+    val textFieldColors = mosqueTextFieldColors()
 
     Scaffold(
         containerColor = DarkBackground,
@@ -286,8 +279,17 @@ fun AdminDashboard(
                     modifier = Modifier.fillMaxWidth(),
                     colors = textFieldColors,
                     singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (confirmNewPasswordVisible) VisualTransformation.None
+                                          else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { confirmNewPasswordVisible = !confirmNewPasswordVisible }) {
+                            Icon(
+                                if (confirmNewPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = null, tint = TextSecondary
+                            )
+                        }
+                    },
                     isError = confirmNewPassword.isNotBlank() && newPassword != confirmNewPassword,
                     supportingText = {
                         if (confirmNewPassword.isNotBlank() && newPassword != confirmNewPassword) {
@@ -604,6 +606,7 @@ fun AdminDashboard(
                         viewModel.updatePrayerAddress(prayerAddress)
                         viewModel.updatePrayerTimezone(prayerTimezone)
                         viewModel.saveAllSettings()
+                        viewModel.fetchPrayerTimes()
                         snackbarHostState.showSnackbar("Pengaturan disimpan")
                     }
                 },

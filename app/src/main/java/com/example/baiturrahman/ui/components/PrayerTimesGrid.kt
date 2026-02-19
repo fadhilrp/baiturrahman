@@ -1,6 +1,5 @@
 package com.example.baiturrahman.ui.components
 
-import android.content.Context
 import android.media.MediaPlayer
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -49,7 +48,6 @@ import com.example.baiturrahman.ui.theme.SecondaryForeground
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 @Composable
@@ -85,40 +83,14 @@ fun PrayerTimesGrid(
         }
     }
 
-    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-
     val currentTimeObj = LocalTime.of(
         currentTime.hour,
         currentTime.minute,
         currentTime.second
     )
 
-    val prayerTimes = mapOf(
-        "Imsak" to (timings?.Imsak?.substringBefore(" ") ?: "XX:XX"),
-        "Shubuh" to (timings?.Fajr?.substringBefore(" ") ?: "XX:XX"),
-        "Syuruq" to (timings?.Sunrise?.substringBefore(" ") ?: "XX:XX"),
-        "Dhuha" to (timings?.Sunrise?.substringBefore(" ")?.let {
-            try {
-                LocalTime.parse(it, timeFormatter).plusMinutes(15).format(timeFormatter)
-            } catch (e: Exception) {
-                "XX:XX"
-            }
-        } ?: "XX:XX"),
-        "Dzuhur" to (timings?.Dhuhr?.substringBefore(" ") ?: "XX:XX"),
-        "Ashar" to (timings?.Asr?.substringBefore(" ") ?: "XX:XX"),
-        "Maghrib" to (timings?.Maghrib?.substringBefore(" ") ?: "XX:XX"),
-        "Isya" to (timings?.Isha?.substringBefore(" ") ?: "XX:XX")
-    )
-
-    val prayerTimeObjects = prayerTimes.mapValues { (_, timeStr) ->
-        try {
-            LocalTime.parse(timeStr)
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    val orderedPrayers = listOf("Imsak", "Shubuh", "Syuruq", "Dhuha", "Dzuhur", "Ashar", "Maghrib", "Isya")
+    val prayerTimes = buildPrayerTimes(timings)
+    val prayerTimeObjects = buildPrayerTimeObjects(prayerTimes)
 
     LaunchedEffect(currentTimeObj) {
         if (iqomahEndTime != null) {
@@ -148,49 +120,22 @@ fun PrayerTimesGrid(
 
     LaunchedEffect(currentTimeObj, isIqomahTime) {
         if (!isIqomahTime) {
-            var foundCurrent = false
-
-            val lastPrayer = orderedPrayers.last()
-            val lastPrayerTime = prayerTimeObjects[lastPrayer]
-
-            if (lastPrayerTime != null && !currentTimeObj.isBefore(lastPrayerTime)) {
-                currentPrayerName = lastPrayer
-                foundCurrent = true
-            }
-
-            if (!foundCurrent) {
-                for (i in orderedPrayers.indices.reversed()) {
-                    val prayer = orderedPrayers[i]
-                    val prayerTime = prayerTimeObjects[prayer]
-
-                    if (prayerTime != null && !currentTimeObj.isBefore(prayerTime)) {
-                        currentPrayerName = prayer
-                        foundCurrent = true
-                        break
-                    }
-                }
-            }
-
-            if (!foundCurrent) {
-                currentPrayerName = orderedPrayers.first()
-            }
-
-            val currentIndex = orderedPrayers.indexOf(currentPrayerName)
-            val nextIndex = (currentIndex + 1) % orderedPrayers.size
-            nextPrayerName = orderedPrayers[nextIndex]
+            val (current, next) = findCurrentAndNextPrayer(currentTimeObj, prayerTimeObjects, orderedPrayers)
+            currentPrayerName = current
+            nextPrayerName = next
         }
     }
 
     LaunchedEffect(shouldPlayPrayerAlarm) {
         if (shouldPlayPrayerAlarm) {
-            playAlarmSoundGrid(context, prayerAlarmPlayer)
+            playAlarmSound(prayerAlarmPlayer)
             shouldPlayPrayerAlarm = false
         }
     }
 
     LaunchedEffect(shouldPlayIqomahAlarm) {
         if (shouldPlayIqomahAlarm) {
-            playAlarmSoundGrid(context, iqomahAlarmPlayer)
+            playAlarmSound(iqomahAlarmPlayer)
             shouldPlayIqomahAlarm = false
         }
     }
@@ -255,18 +200,6 @@ fun PrayerTimesGrid(
                 )
             }
         }
-    }
-}
-
-private fun playAlarmSoundGrid(context: Context, mediaPlayer: MediaPlayer) {
-    try {
-        if (mediaPlayer.isPlaying) {
-            mediaPlayer.stop()
-            mediaPlayer.prepare()
-        }
-        mediaPlayer.start()
-    } catch (e: Exception) {
-        e.printStackTrace()
     }
 }
 
