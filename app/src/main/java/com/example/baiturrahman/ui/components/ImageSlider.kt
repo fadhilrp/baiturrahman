@@ -54,7 +54,7 @@ fun ImageSlider(
     Box(
         modifier = modifier.clip(RoundedCornerShape(16.dp))
     ) {
-        // Crossfade images
+        // Crossfade images — all images always stay in the tree so Coil keeps them cached
         if (images.isEmpty()) {
             Image(
                 painter = painterResource(id = R.drawable.mosque),
@@ -66,20 +66,18 @@ fun ImageSlider(
             images.forEachIndexed { index, imageUrl ->
                 val alpha by animateFloatAsState(
                     targetValue = if (index == internalIndex) 1f else 0f,
-                    animationSpec = tween(durationMillis = 1000),
+                    animationSpec = tween(durationMillis = 800),
                     label = "crossfade_$index"
                 )
-                if (alpha > 0f) {
-                    SupabaseImage(
-                        imageUrl = imageUrl,
-                        contentDescription = "Mosque Image ${index + 1}",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer { this.alpha = alpha },
-                        contentScale = ContentScale.Crop,
-                        fallbackResourceId = null
-                    )
-                }
+                SupabaseImage(
+                    imageUrl = imageUrl,
+                    contentDescription = "Mosque Image ${index + 1}",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { this.alpha = alpha },
+                    contentScale = ContentScale.Crop,
+                    fallbackResourceId = null
+                )
             }
         }
 

@@ -1,126 +1,171 @@
 # Test Cases & Bug Hunting Scenarios
 
+> **Versi:** sesuai commit terbaru (`main` branch)
+> **Terakhir diperbarui:** Februari 2026
+
+---
+
 ## 1. Image Management
 
-| ID | Description | Steps | Expected Result | Priority |
-|----|-------------|-------|-----------------|----------|
-| IMG-01 | Upload a single image | 1. Open Admin Dashboard 2. Scroll to "Slide Gambar" 3. Tap "Tambah Gambar" 4. Select an image from gallery | Image appears in the slider row, count updates (e.g., 1/5), image is uploaded to Supabase Storage and a record is created in `mosque_images` | High |
-| IMG-02 | Upload to maximum limit (5) | 1. Upload 5 images one by one | After 5th image, "Tambah Gambar" button is hidden and "Jumlah maksimum gambar tercapai (5/5)" text is shown | High |
-| IMG-03 | Attempt upload beyond limit | 1. Have 5 images 2. Try to call `addMosqueImage` programmatically | No new image is added, log warning "Cannot add more images, limit reached (5/5)" | Medium |
-| IMG-04 | Delete an image | 1. Tap the X button on an image thumbnail | Image is removed from slider, Supabase Storage file is deleted, `mosque_images` record is deleted via `delete_image_and_reorder` RPC, remaining images are reordered | High |
-| IMG-05 | Delete all images | 1. Delete images one by one until none remain | Slider row is empty, image count shows 0/5, "Tambah Gambar" button reappears | Medium |
-| IMG-06 | Auto-save after upload | 1. Upload an image | Settings are automatically saved (via `saveAllSettingsInternal`) after upload completes | High |
-| IMG-07 | Auto-save after delete | 1. Delete an image | Settings are automatically saved after deletion completes | High |
-| IMG-08 | Upload loading state | 1. Tap "Tambah Gambar" and select an image | Button shows spinner + "Mengupload..." text, delete buttons are disabled during upload | Medium |
-| IMG-09 | Delete loading state | 1. Tap X on an image | Delete buttons and upload button are disabled during deletion | Medium |
-| IMG-10 | Upload large image | 1. Select an image > 5MB | Image uploads successfully (may take longer), no timeout or crash | Medium |
-| IMG-11 | Image slider auto-advance | 1. Upload 3+ images 2. Navigate to main dashboard | Images auto-cycle every 5 seconds, index wraps around correctly | Medium |
-| IMG-12 | Image slider sync during delete | 1. Have 3 images, slider is on image #3 2. Delete image #3 | `currentImageIndex` resets to 0, no IndexOutOfBoundsException | High |
+| ID | Deskripsi | Langkah | Hasil yang Diharapkan | Prioritas |
+|----|-----------|---------|----------------------|-----------|
+| IMG-01 | Upload satu gambar | 1. Buka Admin Dashboard 2. Scroll ke "Slide Gambar" 3. Tap "Tambah Gambar (0/5)" 4. Pilih gambar dari galeri | Gambar muncul di baris thumbnail, tombol menampilkan hitungan terbaru (e.g., "Tambah Gambar (1/5)"), gambar terupload ke Supabase Storage dan record dibuat di `mosque_images` | High |
+| IMG-02 | Upload hingga batas maksimum (5) | 1. Upload 5 gambar satu per satu | Setelah gambar ke-5, tombol "Tambah Gambar" disembunyikan dan diganti teks "Jumlah maksimum gambar tercapai (5/5)" | High |
+| IMG-03 | Coba upload melebihi batas | 1. Ada 5 gambar 2. Panggil `addMosqueImage` secara programatik | Tidak ada gambar baru ditambahkan, log `W/MosqueDashboardViewModel: Max images reached` | Medium |
+| IMG-04 | Hapus satu gambar | 1. Tap tombol X pada thumbnail gambar | Gambar dihapus dari slider, file Supabase Storage dihapus, record `mosque_images` dihapus via RPC `delete_image_and_reorder`, gambar tersisa diurutkan ulang | High |
+| IMG-05 | Hapus semua gambar | 1. Hapus gambar satu per satu hingga kosong | Baris thumbnail kosong, tombol "Tambah Gambar (0/5)" muncul kembali | Medium |
+| IMG-06 | Auto-save setelah upload | 1. Upload gambar | Pengaturan otomatis disimpan (`saveAllSettingsInternal`) setelah upload selesai | High |
+| IMG-07 | Auto-save setelah hapus | 1. Hapus gambar | Pengaturan otomatis disimpan setelah penghapusan selesai | High |
+| IMG-08 | Loading state saat upload | 1. Tap "Tambah Gambar (X/5)" dan pilih gambar | Tombol menampilkan spinner + teks "Mengupload...", tombol hapus dinonaktifkan selama upload | Medium |
+| IMG-09 | Loading state saat hapus | 1. Tap X pada gambar | Tombol hapus dan tombol upload dinonaktifkan selama penghapusan | Medium |
+| IMG-10 | Upload gambar berukuran besar | 1. Pilih gambar > 5MB | Gambar berhasil diupload (mungkin lebih lama), tidak ada timeout atau crash | Medium |
+| IMG-11 | Auto-advance slider | 1. Upload 3+ gambar 2. Navigasi ke dashboard utama | Gambar berganti otomatis setiap 5 detik, index berputar dari awal setelah gambar terakhir | Medium |
+| IMG-12 | Slider sync saat hapus | 1. Ada 3 gambar, slider di gambar ke-3 2. Hapus gambar ke-3 | `currentImageIndex` direset ke 0, tidak ada `IndexOutOfBoundsException` | High |
+
+---
 
 ## 2. Settings Save
 
-| ID | Description | Steps | Expected Result | Priority |
-|----|-------------|-------|-----------------|----------|
-| SET-01 | Save all settings | 1. Modify mosque name, location, quote, marquee 2. Tap "Simpan Perubahan" | All fields are saved to local Room DB and pushed to Supabase PostgreSQL | High |
-| SET-02 | Save loading state | 1. Tap "Simpan Perubahan" | Button shows spinner + "Menyimpan...", button is disabled | Medium |
-| SET-03 | Mosque name character limit | 1. Type in "Nama Masjid" field | Cannot exceed 35 characters, counter shows red at limit, `isError = true` | Medium |
-| SET-04 | Mosque location character limit | 1. Type in "Lokasi Masjid" field | Cannot exceed 25 characters, counter shows red at limit | Medium |
-| SET-05 | Quote text character limit | 1. Type in "Teks Kutipan" field | Cannot exceed 100 characters, counter shows red at limit | Medium |
-| SET-06 | Marquee text character limit | 1. Type in "Teks Berjalan" field | Cannot exceed 100 characters, counter shows red at limit | Medium |
-| SET-07 | Logo upload | 1. Tap "Ubah Logo" 2. Select an image | Logo uploads to Supabase Storage (storage-only, no `mosque_images` record), old logo is deleted, settings auto-save | High |
-| SET-08 | Logo upload loading state | 1. Tap "Ubah Logo" and select image | Button shows spinner + "Mengupload...", button is disabled | Medium |
-| SET-09 | Settings persist after app restart | 1. Save settings 2. Kill and reopen app | All settings are loaded from local Room DB | High |
-| SET-10 | Settings sync from remote | 1. Change settings on master device 2. Wait for sync on non-master | Non-master device receives updated settings via polling | High |
+| ID | Deskripsi | Langkah | Hasil yang Diharapkan | Prioritas |
+|----|-----------|---------|----------------------|-----------|
+| SET-01 | Simpan semua pengaturan | 1. Ubah nama masjid, lokasi, kutipan, teks berjalan 2. Tap "Simpan Perubahan" | Semua field disimpan ke Room DB lokal dan dipush ke Supabase PostgreSQL, snackbar "Pengaturan disimpan" muncul | High |
+| SET-02 | Loading state saat simpan | 1. Tap "Simpan Perubahan" | Tombol menampilkan spinner + "Menyimpan...", tombol dinonaktifkan | Medium |
+| SET-03 | Batas karakter nama masjid | 1. Ketik di field "Nama Masjid" | Tidak bisa melebihi 35 karakter, counter berwarna merah saat di batas, `isError = true` | Medium |
+| SET-04 | Batas karakter lokasi masjid | 1. Ketik di field "Lokasi Masjid" | Tidak bisa melebihi 25 karakter, counter berwarna merah saat di batas | Medium |
+| SET-05 | Batas karakter kutipan | 1. Ketik di field "Teks Kutipan" | Tidak bisa melebihi 100 karakter, counter berwarna merah saat di batas | Medium |
+| SET-06 | Batas karakter teks berjalan | 1. Ketik di field "Teks Berjalan" | Tidak bisa melebihi 200 karakter, counter berwarna merah saat di batas | Medium |
+| SET-07 | Upload logo | 1. Tap "Ubah Logo" 2. Pilih gambar | Logo terupload ke Supabase Storage (storage-only, tanpa record `mosque_images`), logo lama dihapus, pengaturan auto-save | High |
+| SET-08 | Loading state saat upload logo | 1. Tap "Ubah Logo" dan pilih gambar | Tombol menampilkan spinner + "Mengupload...", tombol dinonaktifkan | Medium |
+| SET-09 | Pengaturan tetap ada setelah restart | 1. Simpan pengaturan 2. Force-close dan buka ulang app | Semua pengaturan dimuat dari Room DB lokal | High |
+| SET-10 | Sync pengaturan dari remote | 1. Ubah pengaturan di satu perangkat 2. Tunggu sync di perangkat lain | Perangkat lain menerima pengaturan terbaru via polling setiap 10 detik | High |
 
-## 3. Device & Sync
+---
 
-| ID | Description | Steps | Expected Result | Priority |
-|----|-------------|-------|-----------------|----------|
-| DEV-01 | Select existing device name from dropdown | 1. Open Admin 2. In "Nama Perangkat" dropdown, select an existing device | Device name is set, dropdown closes | High |
-| DEV-02 | Add new device name | 1. Click "+ Tambah Perangkat Baru" 2. Enter a new name in the text field | Text field appears, user can type a new name | High |
-| DEV-03 | Cancel adding new device | 1. Click "+ Tambah Perangkat Baru" 2. Click "Batal" | Returns to dropdown mode, device name resets to previously saved name | Medium |
-| DEV-04 | Device rename on save | 1. Select a different device name (or enter new) 2. Tap "Simpan" | `rename_device` RPC is called, both `mosque_settings` and `mosque_images` are updated atomically | High |
-| DEV-05 | Device rename failure | 1. Enter a device name that conflicts or network is down 2. Tap "Simpan" | Snackbar shows "Gagal mengubah nama perangkat", save is aborted | High |
-| DEV-06 | Device name with same name (no rename) | 1. Keep the same device name 2. Tap "Simpan" | No rename RPC is called, settings save normally | Medium |
-| DEV-07 | Master device toggle | 1. Toggle "Perangkat Utama" switch ON | All editing sections (Header, Prayer, Quote, Images, Marquee) become visible | High |
-| DEV-08 | Non-master device view | 1. Toggle "Perangkat Utama" switch OFF | Only sync settings and info message are shown, full "Simpan Perubahan" is replaced with "Simpan Pengaturan Sinkronisasi" | High |
-| DEV-09 | Sync enabled toggle | 1. Toggle "Aktifkan Sinkronisasi" ON 2. Save | `syncService.startSync()` is called, polling begins | Medium |
-| DEV-10 | Sync disabled toggle | 1. Toggle "Aktifkan Sinkronisasi" OFF 2. Save | `syncService.stopSync()` is called, polling stops | Medium |
-| DEV-11 | Sync lock during save | 1. Trigger save while a sync cycle is in progress | Save waits for `syncMutex` to be released, no data race | High |
-| DEV-12 | Sync restart after save | 1. Change device name and save | Sync is stopped and restarted to pick up new device name | Medium |
-| DEV-13 | Device names loaded on startup | 1. Open the app | `loadDeviceNames()` is called in ViewModel init, dropdown is populated | High |
-| DEV-14 | Empty device names list | 1. No devices exist in Supabase `mosque_settings` | Dropdown is empty, user can still add a new device via "+ Tambah Perangkat Baru" | Medium |
+## 3. Authentication
 
-## 4. Prayer Times
+| ID | Deskripsi | Langkah | Hasil yang Diharapkan | Prioritas |
+|----|-----------|---------|----------------------|-----------|
+| AUTH-01 | Login berhasil | 1. Buka app (belum login) 2. Masukkan username dan password yang valid 3. Tap "Masuk" | Navigasi ke MosqueDashboard, sesi disimpan di SharedPreferences | High |
+| AUTH-02 | Login gagal — kredensial salah | 1. Masukkan username atau password yang salah 2. Tap "Masuk" | Pesan error "Nama pengguna atau kata sandi salah" ditampilkan, tetap di LoginScreen | High |
+| AUTH-03 | Login loading state | 1. Tap "Masuk" | Tombol dinonaktifkan selama proses login, indikator loading ditampilkan | Medium |
+| AUTH-04 | Registrasi berhasil | 1. Buka RegisterScreen 2. Masukkan username baru dan password 3. Tap "Daftar" | Akun dibuat, token sesi disimpan, navigasi ke MosqueDashboard | High |
+| AUTH-05 | Registrasi gagal — username sudah dipakai | 1. Daftar dengan username yang sudah ada | Pesan error "Nama pengguna sudah digunakan" ditampilkan | High |
+| AUTH-06 | Logout | 1. Buka Admin Dashboard 2. Tap "Keluar" | Sesi dihapus di server (RPC), SharedPreferences dibersihkan, navigasi ke LoginScreen | High |
+| AUTH-07 | Validasi sesi saat startup | 1. Buka app dengan token sesi tersimpan | Token divalidasi ke server; jika valid lanjut ke dashboard, jika tidak valid navigasi ke login | High |
+| AUTH-08 | Username ditampilkan di top bar | 1. Buka Admin Dashboard | Username yang sedang login tampil di bawah judul "Dashboard Admin" di top app bar | Low |
 
-| ID | Description | Steps | Expected Result | Priority |
-|----|-------------|-------|-----------------|----------|
-| PRA-01 | Fetch prayer times on startup | 1. Open app | Prayer times are fetched from API using saved address and timezone, displayed on dashboard | High |
-| PRA-02 | Change prayer address | 1. Open Admin 2. Change "Alamat Waktu Sholat" 3. Save | Prayer times are re-fetched with new address | High |
-| PRA-03 | Change timezone | 1. Open Admin 2. Select different timezone from dropdown 3. Save | Prayer times are re-fetched with new timezone | High |
-| PRA-04 | Invalid address | 1. Enter a nonsensical address 2. Save | Error message is shown in `uiState.errorMessage`, default "XX:XX" times may be displayed | Medium |
-| PRA-05 | Network failure during fetch | 1. Disable network 2. Open app or refresh prayer times | Error message is shown, previously cached times (if any) remain | Medium |
-| PRA-06 | Timezone validation | 1. Attempt to set an invalid timezone programmatically | `updatePrayerTimezone` only accepts values in `availableTimezones` list | Low |
-| PRA-07 | All 4 timezone options | 1. Select each timezone: Asia/Jakarta, Asia/Pontianak, Asia/Makassar, Asia/Jayapura | Each selection updates prayer times correctly | Medium |
-| PRA-08 | Loading state during fetch | 1. Trigger prayer time fetch | `uiState.isLoading` is true while fetching, UI shows loading indicator | Medium |
+---
 
-## 5. UI Components
+## 4. Connected Devices & Session Management
 
-| ID | Description | Steps | Expected Result | Priority |
-|----|-------------|-------|-----------------|----------|
-| UI-01 | Image slider display | 1. Add 3+ images 2. View main dashboard | Images display in slider with auto-advance every 5 seconds | High |
-| UI-02 | Image slider manual navigation | 1. Tap on image indicator dots (if present) | Slider navigates to selected image | Medium |
-| UI-03 | Marquee text scrolling | 1. Set marquee text 2. View main dashboard | Text scrolls horizontally across the screen | Medium |
-| UI-04 | Header display | 1. Set mosque name, location, logo | Header shows mosque name, location, and logo image | High |
-| UI-05 | Supabase image loading | 1. Images are stored in Supabase Storage | `SupabaseImage` component loads images with proper headers/auth | High |
-| UI-06 | Admin dashboard scroll | 1. Open Admin with all sections visible (master mode) | All sections are scrollable, no content is cut off | Medium |
-| UI-07 | Admin section card styling | 1. View any admin section | Card has white background, 2dp elevation, proper padding | Low |
-| UI-08 | Snackbar messages | 1. Trigger a rename failure | Snackbar appears at bottom with error message | Medium |
-| UI-09 | Top app bar | 1. Open Admin Dashboard | Shows "Dashboard Admin" title with back arrow, emerald green theme | Low |
+| ID | Deskripsi | Langkah | Hasil yang Diharapkan | Prioritas |
+|----|-----------|---------|----------------------|-----------|
+| DEV-01 | Daftar perangkat terhubung dimuat | 1. Buka Admin Dashboard | Bagian "Perangkat Terhubung" memuat daftar sesi aktif dari server, perangkat saat ini ditandai "(Perangkat ini)" | High |
+| DEV-02 | Perangkat saat ini tidak bisa dikeluarkan | 1. Lihat daftar perangkat terhubung | Tidak ada tombol "Keluarkan" untuk perangkat yang sedang dipakai (`session.isCurrent = true`) | High |
+| DEV-03 | Force logout perangkat lain | 1. Tap "Keluarkan" di samping perangkat lain | Sesi perangkat tersebut dihapus di server, daftar diperbarui | High |
+| DEV-04 | Perbarui daftar perangkat | 1. Tap "Perbarui Daftar" | Daftar perangkat dimuat ulang dari server | Medium |
+| DEV-05 | Waktu terakhir aktif | 1. Lihat daftar perangkat | Setiap perangkat menampilkan "Terakhir aktif: YYYY-MM-DD HH:MM" | Low |
+| DEV-06 | Sync lock saat save | 1. Trigger save saat siklus sync background sedang berjalan | `syncMutex` memastikan operasi dijalankan berurutan, tidak ada data race | High |
 
-## 6. Bug Hunting Scenarios
+---
+
+## 5. Account Security — Change Password
+
+| ID | Deskripsi | Langkah | Hasil yang Diharapkan | Prioritas |
+|----|-----------|---------|----------------------|-----------|
+| PWD-01 | Buka halaman ubah kata sandi | 1. Scroll ke bawah di Admin Dashboard 2. Tap "Ubah Kata Sandi" | Top bar berganti judul "Ubah Kata Sandi", tampil 3 field input: Kata Sandi Saat Ini, Kata Sandi Baru, Konfirmasi | Medium |
+| PWD-02 | Tombol simpan dinonaktifkan jika tidak valid | 1. Kosongkan field atau isi password baru < 6 karakter | Tombol "Simpan Kata Sandi Baru" dinonaktifkan selama kondisi tidak terpenuhi | Medium |
+| PWD-03 | Validasi password tidak cocok | 1. Isi Kata Sandi Baru dan Konfirmasi dengan nilai berbeda | Field konfirmasi menampilkan `isError = true` dan teks "Kata sandi tidak cocok" (merah) | Medium |
+| PWD-04 | Ubah kata sandi berhasil | 1. Isi semua field dengan benar 2. Tap "Simpan Kata Sandi Baru" | Snackbar "Kata sandi berhasil diubah" muncul, field dikosongkan, kembali ke Admin Dashboard | High |
+| PWD-05 | Ubah kata sandi gagal — password lama salah | 1. Isi field Kata Sandi Saat Ini dengan yang salah 2. Tap simpan | Snackbar "Kata sandi lama salah" muncul | High |
+| PWD-06 | Loading state saat ubah password | 1. Tap "Simpan Kata Sandi Baru" | Tombol menampilkan spinner + "Menyimpan...", tombol dinonaktifkan | Medium |
+| PWD-07 | Toggle visibilitas password | 1. Tap ikon mata di salah satu field | Teks password menjadi terlihat / tersembunyi bergantian | Low |
+| PWD-08 | Kembali dari halaman ubah password | 1. Tap tombol back (←) di top bar | Kembali ke tampilan Admin Dashboard utama, field password direset | Low |
+
+---
+
+## 6. Appearance — Dark/Light Theme
+
+| ID | Deskripsi | Langkah | Hasil yang Diharapkan | Prioritas |
+|----|-----------|---------|----------------------|-----------|
+| THM-01 | Aktifkan Mode Gelap | 1. Buka Admin Dashboard 2. Scroll ke "Tema Tampilan" 3. Nyalakan toggle "Mode Gelap" | Seluruh UI berpindah ke tema gelap secara langsung | High |
+| THM-02 | Aktifkan Mode Terang | 1. Matikan toggle "Mode Gelap" | Seluruh UI kembali ke tema terang | High |
+| THM-03 | Preferensi tema tersimpan | 1. Aktifkan Mode Gelap 2. Force-close dan buka ulang app | App terbuka dengan tema yang terakhir dipilih | High |
+| THM-04 | Tema konsisten di semua layar | 1. Aktifkan Mode Gelap 2. Navigasi ke Login, Register, Dashboard, Admin | Semua layar mengikuti tema yang dipilih | Medium |
+
+---
+
+## 7. Prayer Times
+
+| ID | Deskripsi | Langkah | Hasil yang Diharapkan | Prioritas |
+|----|-----------|---------|----------------------|-----------|
+| PRA-01 | Fetch waktu sholat saat startup | 1. Buka app | Waktu sholat di-fetch dari API menggunakan alamat dan timezone tersimpan, ditampilkan di dashboard | High |
+| PRA-02 | Ganti alamat waktu sholat | 1. Buka Admin 2. Ubah "Alamat Waktu Sholat" 3. Tap "Simpan Perubahan" | Waktu sholat di-fetch ulang dengan alamat baru | High |
+| PRA-03 | Ganti timezone | 1. Buka Admin 2. Pilih timezone berbeda dari dropdown 3. Tap "Simpan Perubahan" | Waktu sholat di-fetch ulang dengan timezone baru | High |
+| PRA-04 | Alamat tidak valid | 1. Masukkan alamat sembarang 2. Simpan | Pesan error muncul di `uiState.errorMessage`, waktu sholat mungkin menampilkan default "XX:XX" | Medium |
+| PRA-05 | Gagal fetch karena tidak ada jaringan | 1. Matikan jaringan 2. Buka app atau refresh | Pesan error ditampilkan, waktu sholat terakhir (jika ada) tetap ditampilkan | Medium |
+| PRA-06 | Validasi timezone | 1. Coba set timezone yang tidak ada secara programatik | `updatePrayerTimezone` hanya menerima nilai dalam daftar `availableTimezones` | Low |
+| PRA-07 | Semua 4 opsi timezone | 1. Pilih masing-masing: Asia/Jakarta, Asia/Pontianak, Asia/Makassar, Asia/Jayapura | Setiap pilihan memperbarui waktu sholat dengan benar | Medium |
+| PRA-08 | Loading state saat fetch | 1. Trigger fetch waktu sholat | `uiState.isLoading = true` selama fetch, UI menampilkan indikator loading | Medium |
+
+---
+
+## 8. UI Components
+
+| ID | Deskripsi | Langkah | Hasil yang Diharapkan | Prioritas |
+|----|-----------|---------|----------------------|-----------|
+| UI-01 | Tampilan image slider | 1. Tambahkan 3+ gambar 2. Lihat dashboard utama | Gambar tampil dalam slider dengan auto-advance setiap 5 detik | High |
+| UI-02 | Marquee text scrolling | 1. Set teks berjalan 2. Lihat dashboard utama | Teks scroll horizontal di layar | Medium |
+| UI-03 | Tampilan header | 1. Set nama masjid, lokasi, logo | Header menampilkan nama masjid, lokasi, dan logo | High |
+| UI-04 | Loading gambar Supabase | 1. Gambar tersimpan di Supabase Storage | Komponen `SupabaseImage` memuat gambar dengan header auth yang benar | High |
+| UI-05 | Admin dashboard bisa di-scroll | 1. Buka Admin (semua seksi terlihat) | Semua seksi bisa discroll, tidak ada konten terpotong | Medium |
+| UI-06 | Offline banner | 1. Matikan jaringan 2. Buka Admin Dashboard | Banner merah muncul di bawah top app bar dengan teks "Tidak ada koneksi — perubahan akan disimpan saat online" | High |
+| UI-07 | Offline banner hilang saat kembali online | 1. Matikan lalu nyalakan jaringan kembali | Banner merah menghilang ketika koneksi kembali | Medium |
+| UI-08 | Snackbar pesan sukses simpan | 1. Tap "Simpan Perubahan" | Snackbar "Pengaturan disimpan" muncul di bagian bawah layar | Medium |
+| UI-09 | Styling kartu seksi Admin | 1. Lihat seksi manapun di Admin | Kartu punya border tipis, background sesuai tema, padding yang memadai | Low |
+| UI-10 | Top app bar Admin | 1. Buka Admin Dashboard | Menampilkan judul "Dashboard Admin" + username di bawahnya, tombol back di kiri | Low |
+
+---
+
+## 9. Bug Hunting Scenarios
 
 ### Race Conditions
 
-| ID | Description | Steps | Expected Result | Priority |
-|----|-------------|-------|-----------------|----------|
-| BUG-01 | Rapid image upload + delete | 1. Upload an image 2. Immediately tap delete before upload finishes | Either upload completes then delete runs, or operation is properly blocked by `isUploadingImage`/`isDeletingImage` flags. No orphaned Supabase records | High |
-| BUG-02 | Save during sync cycle | 1. Trigger save while background sync is in progress | `syncMutex` ensures operations are serialized, no data corruption | High |
-| BUG-03 | Double-tap save button | 1. Rapidly tap "Simpan Perubahan" twice | Button is disabled after first tap (`isSaving = true`), only one save operation runs | Medium |
-| BUG-04 | Slider index during rapid deletes | 1. Have 5 images 2. Delete images 3, 4, 5 rapidly | `currentImageIndex` stays within bounds after each delete, no crash | High |
-| BUG-05 | Concurrent rename + sync | 1. Rename device while a sync poll is happening | Sync lock prevents both from running simultaneously | High |
+| ID | Deskripsi | Langkah | Hasil yang Diharapkan | Prioritas |
+|----|-----------|---------|----------------------|-----------|
+| BUG-01 | Upload cepat + hapus | 1. Upload gambar 2. Segera tap hapus sebelum upload selesai | Upload selesai dulu baru hapus, atau operasi diblok oleh flag `isUploadingImage`/`isDeletingImage`. Tidak ada record Supabase yang tergantung (orphaned) | High |
+| BUG-02 | Save saat siklus sync | 1. Trigger save saat sync background berjalan | `syncMutex` memastikan serialisasi, tidak ada korupsi data | High |
+| BUG-03 | Double-tap tombol simpan | 1. Ketuk "Simpan Perubahan" dua kali cepat | Tombol dinonaktifkan setelah tap pertama (`isSaving = true`), hanya satu operasi simpan berjalan | Medium |
+| BUG-04 | Slider index saat hapus cepat | 1. Ada 5 gambar 2. Hapus gambar 3, 4, 5 cepat-cepatan | `currentImageIndex` tetap dalam batas setelah setiap penghapusan, tidak crash | High |
 
 ### Network Failures
 
-| ID | Description | Steps | Expected Result | Priority |
-|----|-------------|-------|-----------------|----------|
-| BUG-06 | Upload image with no network | 1. Disable WiFi/data 2. Try to upload image | Upload fails gracefully, error is logged, no crash, loading state is cleared | High |
-| BUG-07 | Save settings with no network | 1. Disable network 2. Tap "Simpan" | Local Room save succeeds, remote push fails silently (logged), settings are not lost | High |
-| BUG-08 | Delete image with no network | 1. Disable network 2. Tap X on image | Deletion may fail, image remains in list, error is logged | Medium |
-| BUG-09 | Sync polling with intermittent network | 1. Toggle WiFi on/off during sync | Sync handles errors gracefully, retries on next poll interval | Medium |
-| BUG-10 | Rename device with no network | 1. Disable network 2. Change device name 3. Save | Rename RPC fails, snackbar shows error, save is aborted (name not changed locally) | High |
+| ID | Deskripsi | Langkah | Hasil yang Diharapkan | Prioritas |
+|----|-----------|---------|----------------------|-----------|
+| BUG-05 | Upload gambar tanpa jaringan | 1. Matikan WiFi/data 2. Coba upload gambar | Upload gagal secara graceful, error dicatat di log, loading state dibersihkan, tidak crash | High |
+| BUG-06 | Simpan pengaturan tanpa jaringan | 1. Matikan jaringan 2. Tap "Simpan" | Simpan ke Room lokal berhasil, push ke remote gagal secara silent (dicatat di log), data tidak hilang | High |
+| BUG-07 | Hapus gambar tanpa jaringan | 1. Matikan jaringan 2. Tap X pada gambar | Penghapusan mungkin gagal, gambar tetap ada di list, error dicatat di log | Medium |
+| BUG-08 | Sync polling dengan jaringan tidak stabil | 1. Toggle WiFi on/off saat sync berjalan | Sync menangani error secara graceful, retry di interval polling berikutnya | Medium |
 
 ### Edge Cases
 
-| ID | Description | Steps | Expected Result | Priority |
-|----|-------------|-------|-----------------|----------|
-| BUG-11 | Empty device name | 1. Clear device name field 2. Tap save | Rename is skipped (check `newName.isNotBlank()`), or validation prevents empty save | Medium |
-| BUG-12 | Very long device name | 1. Enter a 200+ character device name | Should either be limited by UI or handled by DB constraint | Low |
-| BUG-13 | Special characters in device name | 1. Enter device name with emojis, unicode, or SQL-like strings | Name is properly escaped by Supabase client, no injection | Medium |
-| BUG-14 | Duplicate device name rename | 1. Rename device to a name that already exists in `mosque_settings` | RPC should handle conflict (depends on DB constraint), error surfaced to user | Medium |
-| BUG-15 | App kill during upload | 1. Start uploading an image 2. Force-kill the app | On next startup, `cleanupStaleUploads` removes orphaned "uploading" records | High |
-| BUG-16 | Logo upload then immediately change logo | 1. Upload logo 2. Before first upload finishes, upload another | `isUploadingLogo` flag should disable the button, preventing double upload | Medium |
-| BUG-17 | Settings loaded before sync completes | 1. Fresh install, non-master device 2. Open app | Local Room has default values, sync eventually pulls remote data | Medium |
-| BUG-18 | Image with null URI in database | 1. Simulate an incomplete upload in Room (imageUri = null) | `loadSavedSettings` filters out images with null/blank URIs | Medium |
-| BUG-19 | Zero images in slider | 1. Delete all images | Slider shows nothing, `currentImageIndex` stays at 0, auto-advance loop is harmless | Low |
-| BUG-20 | Permissions denied for image picker | 1. Deny storage permission when prompted | Snackbar shows "Izin penyimpanan diperlukan untuk memilih gambar" | Medium |
+| ID | Deskripsi | Langkah | Hasil yang Diharapkan | Prioritas |
+|----|-----------|---------|----------------------|-----------|
+| BUG-09 | Nama perangkat kosong di label sesi | 1. Lihat daftar perangkat terhubung jika deviceLabel tidak diset | Menampilkan fallback yang aman, tidak crash | Medium |
+| BUG-10 | App mati saat upload | 1. Mulai upload gambar 2. Force-kill app | Saat startup berikutnya, `cleanupStaleUploads` menghapus record "uploading" yang tergantung | High |
+| BUG-11 | Upload logo lalu segera ganti logo | 1. Upload logo 2. Sebelum upload pertama selesai, upload logo lagi | Flag `isUploadingLogo` menonaktifkan tombol, mencegah upload ganda | Medium |
+| BUG-12 | Pengaturan dimuat sebelum sync selesai | 1. Install baru, perangkat baru 2. Buka app | Room DB lokal punya nilai default, sync akhirnya menarik data remote | Medium |
+| BUG-13 | Gambar dengan URI null di database | 1. Simulasikan upload tidak lengkap di Room (`imageUri = null`) | `loadSavedSettings` memfilter gambar dengan URI null/kosong | Medium |
+| BUG-14 | Tidak ada gambar di slider | 1. Hapus semua gambar | Slider tidak menampilkan apa-apa, `currentImageIndex` tetap 0, loop auto-advance tidak error | Low |
+| BUG-15 | Izin galeri ditolak | 1. Tolak izin storage saat diminta | Snackbar "Izin penyimpanan diperlukan" tampil, tidak crash | Medium |
+| BUG-16 | Force logout dari perangkat yang sudah logout | 1. Perangkat A logout, Perangkat B coba force logout Perangkat A | Operasi gagal secara graceful (sesi tidak ada), daftar diperbarui | Medium |
+| BUG-17 | Password baru kurang dari 6 karakter | 1. Di halaman ubah kata sandi, isi field Kata Sandi Baru < 6 karakter | Tombol simpan tetap dinonaktifkan (`newPassword.length >= 6` tidak terpenuhi) | Medium |
 
 ### Data Integrity
 
-| ID | Description | Steps | Expected Result | Priority |
-|----|-------------|-------|-----------------|----------|
-| BUG-21 | Room and Supabase out of sync | 1. Upload image 2. Manually delete from Supabase dashboard 3. Check app | Image URL in Room points to deleted Storage file, `SupabaseImage` shows nothing (no fallback) | Medium |
-| BUG-22 | Stale upload cleanup | 1. Create a record with `upload_status = "uploading"` older than 30 min 2. Restart app | `cleanupStaleUploads` deletes the orphaned record | Medium |
-| BUG-23 | Image display order after delete | 1. Upload images A, B, C (order 0, 1, 2) 2. Delete B | C is reordered to position 1 via `delete_image_and_reorder` RPC | High |
-| BUG-24 | Upsert settings conflict | 1. Two devices save settings with same device_name simultaneously | Upsert with `onConflict = "device_name"` resolves correctly, last write wins | Medium |
-| BUG-25 | Device rename atomicity | 1. Rename device 2. Check both `mosque_settings` and `mosque_images` tables | Both tables have the new device name (atomic via `rename_device` RPC) | High |
+| ID | Deskripsi | Langkah | Hasil yang Diharapkan | Prioritas |
+|----|-----------|---------|----------------------|-----------|
+| BUG-18 | Room dan Supabase tidak sinkron | 1. Upload gambar 2. Hapus manual dari dashboard Supabase 3. Cek app | URL gambar di Room mengarah ke file Storage yang sudah dihapus, `SupabaseImage` tidak menampilkan apa-apa | Medium |
+| BUG-19 | Cleanup upload tergantung | 1. Buat record dengan `upload_status = "uploading"` lebih dari 30 menit lalu 2. Restart app | `cleanupStaleUploads` menghapus record orphaned | Medium |
+| BUG-20 | Urutan gambar setelah hapus | 1. Upload gambar A, B, C (urutan 0, 1, 2) 2. Hapus B | C diurutkan ulang ke posisi 1 via RPC `delete_image_and_reorder` | High |
+| BUG-21 | Upsert settings conflict | 1. Dua perangkat menyimpan pengaturan dengan `device_name` sama secara bersamaan | Upsert dengan `onConflict = "device_name"` menyelesaikan konflik, tulisan terakhir menang | Medium |

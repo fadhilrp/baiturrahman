@@ -12,12 +12,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,7 +40,9 @@ fun MarqueeText(
     val screenWidth = configuration.screenWidthDp
     val isMobile = screenWidth < 600
 
+    val localDensity = LocalDensity.current
     var offset by remember { mutableFloatStateOf(0f) }
+    var textWidthDp by remember { mutableIntStateOf(800) }
 
     val baseSpeed = 1f
     val speedMultiplier = maxOf(0.8f, minOf(1.5f, 100f / text.length.toFloat()))
@@ -46,10 +51,12 @@ fun MarqueeText(
     val resetPosition = if (isMobile) screenWidth.toFloat() + 100f else 980f
 
     LaunchedEffect(text) {
+        // Reset scroll position whenever text changes
+        offset = resetPosition
         while(true) {
             delay(14)
             offset -= speed
-            if (offset < -800f) offset = resetPosition
+            if (offset < -textWidthDp.toFloat()) offset = resetPosition
         }
     }
 
@@ -85,9 +92,12 @@ fun MarqueeText(
                 overflow = TextOverflow.Visible,
                 softWrap = false,
                 modifier = Modifier
-                    .graphicsLayer { translationX = offset * density }
+                    .graphicsLayer { translationX = offset * localDensity.density }
                     .padding(vertical = if (isMobile) 8.dp else 10.dp)
                     .wrapContentWidth()
+                    .onSizeChanged { size ->
+                        textWidthDp = with(localDensity) { size.width.toDp() }.value.toInt() + 50
+                    }
             )
         }
     }

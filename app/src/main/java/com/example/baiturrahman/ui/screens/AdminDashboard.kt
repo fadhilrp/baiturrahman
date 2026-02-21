@@ -596,19 +596,19 @@ fun AdminDashboard(
             AdminSection(title = "Teks Berjalan") {
                 OutlinedTextField(
                     value = marqueeText,
-                    onValueChange = { if (it.length <= 100) marqueeText = it },
+                    onValueChange = { if (it.length <= 200) marqueeText = it },
                     label = { Text("Teks Berjalan") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = textFieldColors,
                     supportingText = {
                         Text(
-                            "${marqueeText.length}/100",
+                            "${marqueeText.length}/200",
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.End,
-                            color = if (marqueeText.length >= 100) Color.Red else c.textSecondary
+                            color = if (marqueeText.length >= 200) Color.Red else c.textSecondary
                         )
                     },
-                    isError = marqueeText.length >= 100
+                    isError = marqueeText.length >= 200
                 )
             }
 
