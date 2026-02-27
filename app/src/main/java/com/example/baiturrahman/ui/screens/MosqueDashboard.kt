@@ -54,12 +54,11 @@ fun MosqueDashboard(
     var contentVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { contentVisible = true }
 
-    // After login: close login screen and open admin dashboard
+    // After login: close login/register screens and return to mosque dashboard
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn && showLoginScreen.value) {
             showLoginScreen.value = false
             showRegisterScreen.value = false
-            showAdminDashboard.value = true
         }
         // After logout: close admin dashboard
         if (!isLoggedIn) {
