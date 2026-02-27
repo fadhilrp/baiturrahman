@@ -84,20 +84,27 @@ class AccountRepository(
 
     /**
      * Validate the stored session token against the server.
-     * Clears prefs and returns false if invalid.
+     * Clears prefs and returns false only when the server confirms the session is invalid.
+     * On network/connectivity errors, keeps the session and returns true so the user
+     * stays logged in rather than being incorrectly evicted.
      */
     suspend fun validateAndClearIfInvalid(): Boolean {
         val token = accountPreferences.sessionToken ?: return false
-        val result = postgresRepository.validateSession(token)
-        return if (result != null) {
-            val (accountId, username) = result
-            accountPreferences.accountId = accountId
-            accountPreferences.username = username
-            true
-        } else {
-            Log.w(TAG, "Session invalid — clearing prefs")
-            accountPreferences.clearSession()
-            false
+        return try {
+            val result = postgresRepository.validateSession(token)
+            if (result != null) {
+                val (accountId, username) = result
+                accountPreferences.accountId = accountId
+                accountPreferences.username = username
+                true
+            } else {
+                Log.w(TAG, "Session invalid — clearing prefs")
+                accountPreferences.clearSession()
+                false
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Session validation network error — keeping stored session: ${e.message}")
+            true // Can't reach server; assume session still valid to avoid wiping it
         }
     }
 

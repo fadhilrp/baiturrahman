@@ -115,11 +115,6 @@ fun RegisterScreen(
             )
         }
 
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
-
         Card(
             modifier = Modifier
                 .widthIn(max = 480.dp)
@@ -304,5 +299,10 @@ fun RegisterScreen(
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }

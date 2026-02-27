@@ -33,7 +33,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun MarqueeText(
-    text: String = "Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling",
+    text: String = "Lurus dan rapatkan shaf, mohon untuk mematikan alat komunikasi demi menjaga kesempurnaan sholat.",
 ) {
     val c = LocalAppColors.current
     val localDensity = LocalDensity.current

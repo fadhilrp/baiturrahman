@@ -31,10 +31,10 @@ data class MosqueSettingsRemote(
     val prayerTimezone: String = "Asia/Jakarta",
 
     @SerialName("quote_text")
-    val quoteText: String = "Lorem ipsum dolor sit amet",
+    val quoteText: String = "\"Sesungguhnya shalat itu mencegah dari perbuatan-perbuatan keji dan mungkar.\" (QS. Al-Ankabut: 45)",
 
     @SerialName("marquee_text")
-    val marqueeText: String = "Rolling Text",
+    val marqueeText: String = "Lurus dan rapatkan shaf, mohon untuk mematikan alat komunikasi demi menjaga kesempurnaan sholat.",
 
     @SerialName("updated_at")
     val updatedAt: String = ""

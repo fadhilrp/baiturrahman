@@ -496,7 +496,7 @@ fun AdminDashboard(
             AdminSection(title = "Pengaturan Kutipan") {
                 OutlinedTextField(
                     value = quoteText,
-                    onValueChange = { if (it.length <= 100) quoteText = it },
+                    onValueChange = { if (it.length <= 150) quoteText = it },
                     label = { Text("Teks Kutipan") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = textFieldColors,
