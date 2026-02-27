@@ -13,7 +13,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -21,7 +22,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.JetBrainsMono
 import com.example.baiturrahman.ui.theme.LocalAppColors
@@ -30,11 +30,10 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun CurrentTimeDisplay(prayerData: PrayerData? = null) {
+fun CurrentTimeDisplay() {
     val c = LocalAppColors.current
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp
-    val isMobile = screenWidth < 600
+    val widthDp = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() }
+    val isMobile = widthDp < 600.dp
 
     val hoursFormat = SimpleDateFormat("HH", Locale.ROOT)
     val minutesFormat = SimpleDateFormat("mm", Locale.ROOT)

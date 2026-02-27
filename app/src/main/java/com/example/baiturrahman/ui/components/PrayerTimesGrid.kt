@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.example.baiturrahman.R
 import com.example.baiturrahman.data.model.PrayerTimings
 import com.example.baiturrahman.ui.theme.ActivePrayerBg
+import com.example.baiturrahman.ui.theme.EmeraldGlow20
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.GoldAccent
 import com.example.baiturrahman.ui.theme.GoldMuted
@@ -50,7 +51,6 @@ fun PrayerTimesGrid(
     timings: PrayerTimings?,
     isMobile: Boolean = false
 ) {
-    val c = LocalAppColors.current
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
     var isIqomahTime by remember { mutableStateOf(false) }
@@ -227,7 +227,7 @@ private fun PrayerTimeCard(
         targetValue = when {
             isIqomahTime -> GoldAccent
             isActive -> EmeraldGreen.copy(alpha = 0.4f)
-            isNext -> EmeraldGreen.copy(alpha = 0.2f)
+            isNext -> EmeraldGlow20
             else -> c.border.copy(alpha = 0.5f)
         },
         animationSpec = tween(durationMillis = 500),

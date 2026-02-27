@@ -19,8 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,11 +36,9 @@ fun MarqueeText(
     text: String = "Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling",
 ) {
     val c = LocalAppColors.current
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp
-    val isMobile = screenWidth < 600
-
     val localDensity = LocalDensity.current
+    val widthDp = with(localDensity) { LocalWindowInfo.current.containerSize.width.toDp() }
+    val isMobile = widthDp < 600.dp
     var offset by remember { mutableFloatStateOf(0f) }
     var textWidthDp by remember { mutableIntStateOf(800) }
 
@@ -48,7 +46,7 @@ fun MarqueeText(
     val speedMultiplier = maxOf(0.8f, minOf(1.5f, 100f / text.length.toFloat()))
     val speed = baseSpeed * speedMultiplier
 
-    val resetPosition = if (isMobile) screenWidth.toFloat() + 100f else 980f
+    val resetPosition = if (isMobile) widthDp.value + 100f else 980f
 
     LaunchedEffect(text) {
         // Reset scroll position whenever text changes

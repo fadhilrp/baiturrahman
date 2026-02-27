@@ -41,7 +41,7 @@ class ImageRepository(
         sessionToken: String = ""
     ): UploadResult? {
         return withContext(Dispatchers.IO) {
-            var imageId: String? = null
+            var imageId: String?
             try {
                 Log.d(TAG, "=== UPLOAD STARTED: folder=$folder, order=$displayOrder ===")
 
@@ -189,44 +189,11 @@ class ImageRepository(
         }
     }
 
-    @OptIn(ExperimentalTime::class)
-    suspend fun testConnection(): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                val buckets = SupabaseClient.client.storage.retrieveBuckets()
-                buckets.any { it.name == bucketName }
-            } catch (e: Exception) {
-                Log.e(TAG, "Connection test failed", e)
-                false
-            }
-        }
-    }
-
-    @OptIn(ExperimentalTime::class)
-    suspend fun verifyBucketAccess(): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                val client = SupabaseClient.client
-                val buckets = client.storage.retrieveBuckets()
-                val target = buckets.find { it.name == bucketName }
-                if (target == null) {
-                    Log.e(TAG, "Bucket '$bucketName' not found")
-                    return@withContext false
-                }
-                Log.d(TAG, "Bucket '$bucketName' found, public=${target.public}")
-                true
-            } catch (e: Exception) {
-                Log.e(TAG, "verifyBucketAccess failed", e)
-                false
-            }
-        }
-    }
-
     private fun extractIdFromUrl(url: String): String? {
         return try {
             val filename = url.split("/").lastOrNull() ?: return null
             filename.substringBeforeLast(".")
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
@@ -245,7 +212,7 @@ class ImageRepository(
         return try {
             val parts = url.split("/storage/v1/object/public/$bucketName/")
             if (parts.size == 2) parts[1] else null
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }

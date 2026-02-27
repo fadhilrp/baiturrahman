@@ -11,20 +11,20 @@ val orderedPrayers = listOf("Imsak", "Shubuh", "Syuruq", "Dhuha", "Dzuhur", "Ash
 fun buildPrayerTimes(timings: PrayerTimings?): Map<String, String> {
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
     return mapOf(
-        "Imsak" to (timings?.Imsak?.substringBefore(" ") ?: "XX:XX"),
-        "Shubuh" to (timings?.Fajr?.substringBefore(" ") ?: "XX:XX"),
-        "Syuruq" to (timings?.Sunrise?.substringBefore(" ") ?: "XX:XX"),
-        "Dhuha" to (timings?.Sunrise?.substringBefore(" ")?.let {
+        "Imsak" to (timings?.imsak?.substringBefore(" ") ?: "XX:XX"),
+        "Shubuh" to (timings?.fajr?.substringBefore(" ") ?: "XX:XX"),
+        "Syuruq" to (timings?.sunrise?.substringBefore(" ") ?: "XX:XX"),
+        "Dhuha" to (timings?.sunrise?.substringBefore(" ")?.let {
             try {
                 LocalTime.parse(it, timeFormatter).plusMinutes(15).format(timeFormatter)
             } catch (_: Exception) {
                 "XX:XX"
             }
         } ?: "XX:XX"),
-        "Dzuhur" to (timings?.Dhuhr?.substringBefore(" ") ?: "XX:XX"),
-        "Ashar" to (timings?.Asr?.substringBefore(" ") ?: "XX:XX"),
-        "Maghrib" to (timings?.Maghrib?.substringBefore(" ") ?: "XX:XX"),
-        "Isya" to (timings?.Isha?.substringBefore(" ") ?: "XX:XX")
+        "Dzuhur" to (timings?.dhuhr?.substringBefore(" ") ?: "XX:XX"),
+        "Ashar" to (timings?.asr?.substringBefore(" ") ?: "XX:XX"),
+        "Maghrib" to (timings?.maghrib?.substringBefore(" ") ?: "XX:XX"),
+        "Isya" to (timings?.isha?.substringBefore(" ") ?: "XX:XX")
     )
 }
 

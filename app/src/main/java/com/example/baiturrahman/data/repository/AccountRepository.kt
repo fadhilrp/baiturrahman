@@ -8,7 +8,9 @@ class AccountRepository(
     private val postgresRepository: SupabasePostgresRepository,
     private val accountPreferences: AccountPreferences
 ) {
-    private val TAG = "AccountRepository"
+    companion object {
+        private const val TAG = "AccountRepository"
+    }
 
     suspend fun checkUsernameAvailable(username: String): Boolean {
         return postgresRepository.checkUsernameAvailable(username)
@@ -118,8 +120,4 @@ class AccountRepository(
         return if (success) null else "Kata sandi lama salah"
     }
 
-    suspend fun updateLastSeen() {
-        val token = accountPreferences.sessionToken ?: return
-        postgresRepository.updateSessionLastSeen(token)
-    }
 }

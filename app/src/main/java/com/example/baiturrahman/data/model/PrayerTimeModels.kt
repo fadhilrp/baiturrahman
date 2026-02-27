@@ -1,5 +1,7 @@
 package com.example.baiturrahman.data.model
 
+import com.google.gson.annotations.SerializedName
+
 // API Models
 data class PrayerResponse(
     val code: Int,
@@ -13,15 +15,15 @@ data class PrayerData(
 )
 
 data class PrayerTimings(
-    val Fajr: String?,
-    val Sunrise: String?,
-    val Dhuhr: String?,
-    val Asr: String?,
-    val Sunset: String?,
-    val Maghrib: String?,
-    val Isha: String?,
-    val Imsak: String?,
-    val Midnight: String?
+    @SerializedName("Fajr")     val fajr: String?,
+    @SerializedName("Sunrise")  val sunrise: String?,
+    @SerializedName("Dhuhr")    val dhuhr: String?,
+    @SerializedName("Asr")      val asr: String?,
+    @SerializedName("Sunset")   val sunset: String?,
+    @SerializedName("Maghrib")  val maghrib: String?,
+    @SerializedName("Isha")     val isha: String?,
+    @SerializedName("Imsak")    val imsak: String?,
+    @SerializedName("Midnight") val midnight: String?
 )
 
 data class DateInfo(

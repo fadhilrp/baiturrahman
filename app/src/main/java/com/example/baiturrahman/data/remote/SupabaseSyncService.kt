@@ -10,9 +10,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -39,7 +36,9 @@ class SupabaseSyncService(
     private val accountPreferences: AccountPreferences,
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO)
 ) {
-    private val TAG = "SupabaseSyncService"
+    companion object {
+        private const val TAG = "SupabaseSyncService"
+    }
 
     private var imagesSyncJob: Job? = null
     private var settingsSyncJob: Job? = null
@@ -47,9 +46,6 @@ class SupabaseSyncService(
     private var isRunning = false
 
     private val syncMutex = Mutex()
-
-    private val _isOffline = MutableStateFlow(false)
-    val isOffline: StateFlow<Boolean> = _isOffline.asStateFlow()
 
     suspend fun <T> withSyncLock(block: suspend () -> T): T = syncMutex.withLock { block() }
 
@@ -90,7 +86,6 @@ class SupabaseSyncService(
                     // Heartbeat — also detects force-logout
                     try {
                         postgresRepository.updateSessionLastSeen(token)
-                        _isOffline.value = false
                     } catch (e: Exception) {
                         Log.w(TAG, "Heartbeat failed: ${e.message}")
                         if (isSessionInvalidError(e)) {
@@ -99,7 +94,6 @@ class SupabaseSyncService(
                             stopSync()
                             return@withLock
                         }
-                        _isOffline.value = true
                         return@withLock
                     }
 
@@ -128,7 +122,6 @@ class SupabaseSyncService(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Images sync error", e)
-                _isOffline.value = true
             }
 
             delay(syncIntervalMs)
@@ -187,52 +180,6 @@ class SupabaseSyncService(
         }
         Log.d(TAG, "Settings sync loop stopped")
     }
-
-    suspend fun forceSyncNow() {
-        val token = accountPreferences.sessionToken ?: return
-        Log.d(TAG, "Force sync triggered")
-
-        syncMutex.withLock {
-            try {
-                val remoteSettings = postgresRepository.getSettingsByToken(token)
-                if (remoteSettings != null) {
-                    localRepository.saveSettings(
-                        sessionToken = token,
-                        mosqueName = remoteSettings.mosqueName,
-                        mosqueLocation = remoteSettings.mosqueLocation,
-                        logoImage = remoteSettings.logoImage,
-                        prayerAddress = remoteSettings.prayerAddress,
-                        prayerTimezone = remoteSettings.prayerTimezone,
-                        quoteText = remoteSettings.quoteText,
-                        marqueeText = remoteSettings.marqueeText,
-                        pushToRemote = false
-                    )
-                    Log.d(TAG, "Settings force-synced")
-                }
-
-                val remoteImages = postgresRepository.getImagesByToken(token)
-                val completedRemoteImages = remoteImages.filter { it.imageUri != null }
-                val mosqueImageDao = database.mosqueImageDao()
-
-                database.withTransaction {
-                    mosqueImageDao.deleteAllImages()
-                    completedRemoteImages.forEach { remote ->
-                        localRepository.addMosqueImageWithId(
-                            id = 0,
-                            imageUri = remote.imageUri!!,
-                            displayOrder = remote.displayOrder,
-                            supabaseId = remote.id
-                        )
-                    }
-                }
-                Log.d(TAG, "Images force-synced: ${completedRemoteImages.size}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Force sync error", e)
-            }
-        }
-    }
-
-    fun isSyncRunning(): Boolean = isRunning
 
     private fun isSessionInvalidError(e: Exception): Boolean {
         val msg = e.message ?: return false

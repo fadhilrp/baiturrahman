@@ -39,15 +39,3 @@ data class ImageMetadata(
     @SerialName("updated_at")
     val updatedAt: String = ""
 )
-
-enum class UploadStatus(val value: String) {
-    UPLOADING("uploading"),
-    COMPLETED("completed"),
-    FAILED("failed");
-
-    companion object {
-        fun fromString(value: String): UploadStatus {
-            return values().find { it.value == value } ?: UPLOADING
-        }
-    }
-}

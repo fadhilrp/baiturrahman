@@ -99,14 +99,4 @@ class MosqueSettingsRepository(
         }
     }
 
-    suspend fun clearAllData() {
-        database.withTransaction {
-            mosqueSettingsDao.deleteAllSettings()
-            mosqueImageDao.deleteAllImages()
-        }
-    }
-
-    suspend fun clearAllImages() {
-        mosqueImageDao.deleteAllImages()
-    }
 }

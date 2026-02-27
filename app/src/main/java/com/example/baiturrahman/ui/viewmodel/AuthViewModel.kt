@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class AuthViewModel(
-    private val accountPreferences: AccountPreferences,
+    accountPreferences: AccountPreferences,
     private val accountRepository: AccountRepository
 ) : ViewModel() {
 

@@ -18,7 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -37,16 +38,16 @@ fun MosqueDashboard(
     authViewModel: AuthViewModel = koinViewModel()
 ) {
     val c = LocalAppColors.current
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp
-    val screenHeight = configuration.screenHeightDp
-    val isMobile = screenWidth < 600 || screenHeight > screenWidth
+    val containerSize = LocalWindowInfo.current.containerSize
+    val widthDp  = with(LocalDensity.current) { containerSize.width.toDp() }
+    val heightDp = with(LocalDensity.current) { containerSize.height.toDp() }
+    val isMobile = widthDp < 600.dp || heightDp > widthDp
 
     val uiState by viewModel.uiState.collectAsState()
     val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
-    var showAdminDashboard by remember { mutableStateOf(false) }
-    var showLoginScreen by remember { mutableStateOf(false) }
-    var showRegisterScreen by remember { mutableStateOf(false) }
+    val showAdminDashboard = remember { mutableStateOf(false) }
+    val showLoginScreen     = remember { mutableStateOf(false) }
+    val showRegisterScreen  = remember { mutableStateOf(false) }
     val mosqueImages by viewModel.mosqueImages.collectAsState()
     val currentImageIndex by viewModel.currentImageIndex.collectAsState()
 
@@ -55,35 +56,35 @@ fun MosqueDashboard(
 
     // After login: close login screen and open admin dashboard
     LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn && showLoginScreen) {
-            showLoginScreen = false
-            showRegisterScreen = false
-            showAdminDashboard = true
+        if (isLoggedIn && showLoginScreen.value) {
+            showLoginScreen.value = false
+            showRegisterScreen.value = false
+            showAdminDashboard.value = true
         }
         // After logout: close admin dashboard
         if (!isLoggedIn) {
-            showAdminDashboard = false
+            showAdminDashboard.value = false
         }
     }
 
-    if (showAdminDashboard) {
+    if (showAdminDashboard.value) {
         AdminDashboard(
             viewModel = viewModel,
             authViewModel = authViewModel,
-            onClose = { showAdminDashboard = false }
+            onClose = { showAdminDashboard.value = false }
         )
-    } else if (showLoginScreen) {
-        if (showRegisterScreen) {
+    } else if (showLoginScreen.value) {
+        if (showRegisterScreen.value) {
             RegisterScreen(
                 authViewModel = authViewModel,
-                onNavigateToLogin = { showRegisterScreen = false },
-                onBack = { showRegisterScreen = false }
+                onNavigateToLogin = { showRegisterScreen.value = false },
+                onBack = { showRegisterScreen.value = false }
             )
         } else {
             LoginScreen(
                 authViewModel = authViewModel,
-                onNavigateToRegister = { showRegisterScreen = true },
-                onBack = { showLoginScreen = false }
+                onNavigateToRegister = { showRegisterScreen.value = true },
+                onBack = { showLoginScreen.value = false }
             )
         }
     } else {
@@ -139,7 +140,7 @@ fun MosqueDashboard(
                         uiState = uiState,
                         mosqueImages = mosqueImages,
                         currentImageIndex = currentImageIndex,
-                        onSettingsClick = { if (isLoggedIn) showAdminDashboard = true else showLoginScreen = true },
+                        onSettingsClick = { if (isLoggedIn) showAdminDashboard.value = true else showLoginScreen.value = true },
                     )
                 }
             }
@@ -147,7 +148,7 @@ fun MosqueDashboard(
             // Settings button — mobile only (no background)
             if (isMobile) {
                 IconButton(
-                    onClick = { if (isLoggedIn) showAdminDashboard = true else showLoginScreen = true },
+                    onClick = { if (isLoggedIn) showAdminDashboard.value = true else showLoginScreen.value = true },
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .statusBarsPadding()
@@ -237,7 +238,7 @@ private fun TvDashboardLayout(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Mosque Identity
-                    Header()
+                    if (uiState.isLoading) HeaderSkeleton() else Header()
 
                     // Clock + Date card
                     val clockDateShape = RoundedCornerShape(12.dp)
@@ -278,10 +279,14 @@ private fun TvDashboardLayout(
             }
 
             // Bottom: Prayer times grid (8 columns)
-            PrayerTimesGrid(
-                timings = uiState.prayerData?.timings,
-                isMobile = false
-            )
+            if (uiState.isLoading) {
+                PrayerTimesGridSkeleton(isMobile = false)
+            } else {
+                PrayerTimesGrid(
+                    timings = uiState.prayerData?.timings,
+                    isMobile = false
+                )
+            }
         }
 
         // Marquee pinned to very bottom, outside padding
@@ -310,7 +315,7 @@ private fun MobileDashboardLayout(
             Spacer(Modifier.height(8.dp))
 
             // Mosque Identity
-            Header()
+            if (uiState.isLoading) HeaderSkeleton() else Header()
             Spacer(Modifier.height(8.dp))
 
             // Clock + Date card — themed colors for light/dark mode
@@ -331,7 +336,7 @@ private fun MobileDashboardLayout(
                     .padding(vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                CurrentTimeDisplay(uiState.prayerData)
+                CurrentTimeDisplay()
                 Spacer(modifier = Modifier.height(8.dp))
                 CurrentDateDisplay(uiState.prayerData)
             }
@@ -355,10 +360,14 @@ private fun MobileDashboardLayout(
 
             // Prayer Times Grid
             Box(modifier = Modifier.fillMaxWidth()) {
-                PrayerTimesGrid(
-                    timings = uiState.prayerData?.timings,
-                    isMobile = true
-                )
+                if (uiState.isLoading) {
+                    PrayerTimesGridSkeleton(isMobile = true)
+                } else {
+                    PrayerTimesGrid(
+                        timings = uiState.prayerData?.timings,
+                        isMobile = true
+                    )
+                }
             }
             Spacer(Modifier.height(8.dp))
 

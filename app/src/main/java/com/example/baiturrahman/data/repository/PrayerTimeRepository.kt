@@ -2,10 +2,9 @@ package com.example.baiturrahman.data.repository
 
 import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.data.remote.RetrofitClient
+import com.example.baiturrahman.utils.DateTimeUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 class PrayerTimeRepository {
     private val api = RetrofitClient.prayerTimeService
@@ -16,7 +15,7 @@ class PrayerTimeRepository {
     ): Result<PrayerData> {
         return withContext(Dispatchers.IO) {
             try {
-                val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
+                val today = DateTimeUtils.formatDateForApi()
                 val response = api.getPrayerTimes(
                     date = today,
                     address = address,

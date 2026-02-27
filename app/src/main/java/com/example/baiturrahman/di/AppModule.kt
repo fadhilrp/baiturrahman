@@ -39,5 +39,5 @@ val appModule = module {
 
     // ViewModels
     viewModel { AuthViewModel(get(), get()) }
-    viewModel { MosqueDashboardViewModel(get(), get(), get(), get(), androidApplication(), get(), get(), get()) }
+    viewModel { MosqueDashboardViewModel(get(), get(), get(), get(), get(), get(), get()) }
 }

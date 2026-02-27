@@ -6,7 +6,6 @@ import com.example.baiturrahman.data.model.ImageMetadata
 import com.example.baiturrahman.data.model.MosqueSettingsRemote
 import com.example.baiturrahman.data.remote.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.rpc
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive

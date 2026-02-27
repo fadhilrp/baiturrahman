@@ -1,8 +1,7 @@
 package com.example.baiturrahman.ui.viewmodel
 
-import android.app.Application
-import android.net.Uri
 import android.util.Log
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.baiturrahman.data.model.DeviceSession
@@ -29,10 +28,9 @@ class MosqueDashboardViewModel(
     private val settingsRepository: MosqueSettingsRepository,
     private val imageRepository: ImageRepository,
     private val accountPreferences: AccountPreferences,
-    private val application: Application,
     private val syncService: SupabaseSyncService,
     private val accountRepository: AccountRepository,
-    private val connectivityObserver: NetworkConnectivityObserver
+    connectivityObserver: NetworkConnectivityObserver
 ) : ViewModel() {
 
     companion object {
@@ -120,7 +118,7 @@ class MosqueDashboardViewModel(
 
         viewModelScope.launch {
             settingsRepository.mosqueImages.collectLatest { images ->
-                val completedImages = images.filter { !it.imageUri.isNullOrBlank() }
+                val completedImages = images.filter { it.imageUri.isNotBlank() }
                 val imageUris = completedImages.sortedBy { it.displayOrder }.map { it.imageUri }
 
                 isSliderSyncing = true
@@ -214,7 +212,7 @@ class MosqueDashboardViewModel(
         viewModelScope.launch {
             _isUploadingLogo.value = true
             try {
-                val publicUrl = imageRepository.uploadLogoToStorage(Uri.parse(uri))
+                val publicUrl = imageRepository.uploadLogoToStorage(uri.toUri())
                 if (publicUrl != null) {
                     val oldLogoUrl = _logoImage.value
                     if (oldLogoUrl != null && oldLogoUrl != publicUrl) {
@@ -245,7 +243,7 @@ class MosqueDashboardViewModel(
                 val currentCount = _mosqueImages.value.size
                 syncService.withSyncLock {
                     val result = imageRepository.uploadImage(
-                        Uri.parse(uri),
+                        uri.toUri(),
                         "mosque-images",
                         displayOrder = currentCount,
                         sessionToken = token

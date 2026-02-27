@@ -15,7 +15,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,19 +26,16 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.ui.theme.EmeraldGreen
 import com.example.baiturrahman.ui.theme.LocalAppColors
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.example.baiturrahman.utils.DateTimeUtils
+import java.time.LocalDate
 
 @Composable
 fun CurrentDateDisplay(prayerData: PrayerData?) {
     val c = LocalAppColors.current
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp
-    val isMobile = screenWidth < 600
+    val widthDp = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() }
+    val isMobile = widthDp < 600.dp
 
-    val dateFormat = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.forLanguageTag("id"))
-    var dateString by remember { mutableStateOf(dateFormat.format(Date())) }
+    var dateString by remember { mutableStateOf(DateTimeUtils.formatDateForDisplay(LocalDate.now())) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -45,7 +43,7 @@ fun CurrentDateDisplay(prayerData: PrayerData?) {
         val handler = Handler(Looper.getMainLooper())
         val runnable = object : Runnable {
             override fun run() {
-                dateString = dateFormat.format(Date())
+                dateString = DateTimeUtils.formatDateForDisplay(LocalDate.now())
                 handler.postDelayed(this, 60000)
             }
         }
