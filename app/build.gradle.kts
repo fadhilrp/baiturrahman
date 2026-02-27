@@ -93,7 +93,7 @@ dependencies {
     implementation(libs.realtime.kt)
     implementation(libs.storage.kt)
     implementation(libs.functions.kt)
-    implementation(libs.ktor.ktor.client.android)
+    implementation(libs.ktor.ktor.client.okhttp)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)

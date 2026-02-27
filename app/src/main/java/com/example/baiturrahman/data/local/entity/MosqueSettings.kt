@@ -12,6 +12,6 @@ data class MosqueSettings(
     val logoImage: String? = null,
     val prayerAddress: String = "Lebak Bulus, Jakarta, ID",
     val prayerTimezone: String = "Asia/Jakarta",
-    val quoteText: String = "\"Lorem ipsum dolor sit amet.\"",
-    val marqueeText: String = "Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text"
+    val quoteText: String = "\"Sesungguhnya shalat itu mencegah dari perbuatan-perbuatan keji dan mungkar.\" (QS. Al-Ankabut: 45)",
+    val marqueeText: String = "Lurus dan rapatkan shaf, mohon untuk mematikan alat komunikasi demi menjaga kesempurnaan sholat."
 )

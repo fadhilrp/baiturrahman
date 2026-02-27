@@ -42,7 +42,7 @@ class MosqueDashboardViewModel(
     private val _uiState = MutableStateFlow(MosqueDashboardUiState())
     val uiState: StateFlow<MosqueDashboardUiState> = _uiState.asStateFlow()
 
-    private val _quoteText = MutableStateFlow("\"Lorem ipsum dolor sit amet, consectetur adipiscing elit.\"")
+    private val _quoteText = MutableStateFlow("\"Sesungguhnya shalat itu mencegah dari perbuatan-perbuatan keji dan mungkar.\" (QS. Al-Ankabut: 45)")
     val quoteText: StateFlow<String> = _quoteText
 
     private val _mosqueName = MutableStateFlow("Masjid Baiturrahman")
@@ -51,7 +51,7 @@ class MosqueDashboardViewModel(
     private val _mosqueLocation = MutableStateFlow("Pondok Pinang")
     val mosqueLocation: StateFlow<String> = _mosqueLocation
 
-    private val _marqueeText = MutableStateFlow("Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text Rolling Text")
+    private val _marqueeText = MutableStateFlow("Lurus dan rapatkan shaf, mohon untuk mematikan alat komunikasi demi menjaga kesempurnaan sholat.")
     val marqueeText: StateFlow<String> = _marqueeText
 
     private val _logoImage = MutableStateFlow<String?>(null)

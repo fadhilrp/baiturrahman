@@ -30,7 +30,7 @@ class SupabasePostgresRepository {
             result
         } catch (e: Exception) {
             Log.e(TAG, "checkUsernameAvailable failed", e)
-            false
+            true // optimistic: assume available on error; actual register will catch real conflicts
         }
     }
 
@@ -89,18 +89,18 @@ class SupabasePostgresRepository {
     /**
      * Validate session token. Returns (account_id, username) if valid, null if invalid/expired.
      */
+    /**
+     * Returns (account_id, username) if session is valid, null if the server says it's invalid.
+     * Throws on network/connectivity errors so callers can distinguish "invalid session" from
+     * "couldn't reach server" and avoid clearing a valid stored session unnecessarily.
+     */
     suspend fun validateSession(token: String): Pair<String, String>? {
-        return try {
-            val params = buildJsonObject { put("p_session_token", token) }
-            val result = client.postgrest.rpc("validate_session", params)
-                .decodeAs<JsonObject>()
-            val accountId = result["account_id"]?.jsonPrimitive?.contentOrNull ?: return null
-            val username = result["username"]?.jsonPrimitive?.contentOrNull ?: return null
-            accountId to username
-        } catch (e: Exception) {
-            Log.e(TAG, "validateSession failed: ${e.message}")
-            null
-        }
+        val params = buildJsonObject { put("p_session_token", token) }
+        val result = client.postgrest.rpc("validate_session", params)
+            .decodeAs<JsonObject>()
+        val accountId = result["account_id"]?.jsonPrimitive?.contentOrNull ?: return null
+        val username = result["username"]?.jsonPrimitive?.contentOrNull ?: return null
+        return accountId to username
     }
 
     suspend fun logout(token: String) {

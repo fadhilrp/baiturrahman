@@ -176,7 +176,12 @@ BEGIN
     RETURNING session_token INTO v_token;
 
     -- Create default settings row for this account
-    INSERT INTO mosque_settings (account_id) VALUES (v_account_id)
+    INSERT INTO mosque_settings (account_id, quote_text, marquee_text)
+    VALUES (
+        v_account_id,
+        '"Sesungguhnya shalat itu mencegah dari perbuatan-perbuatan keji dan mungkar." (QS. Al-Ankabut: 45)',
+        'Lurus dan rapatkan shaf, mohon untuk mematikan alat komunikasi demi menjaga kesempurnaan sholat.'
+    )
     ON CONFLICT (account_id) DO NOTHING;
 
     RETURN json_build_object('session_token', v_token);

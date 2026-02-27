@@ -102,11 +102,6 @@ fun LoginScreen(
             )
         }
 
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
-
         Card(
             modifier = Modifier
                 .widthIn(max = 480.dp)
@@ -220,5 +215,10 @@ fun LoginScreen(
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }

@@ -24,7 +24,7 @@ import com.example.baiturrahman.ui.theme.LocalAppColors
 
 @Composable
 fun QuoteBox(
-    quote: String = "\"Lorem ipsum dolor sit amet.\"",
+    quote: String = "\"Sesungguhnya shalat itu mencegah dari perbuatan-perbuatan keji dan mungkar.\" (QS. Al-Ankabut: 45)",
     modifier: Modifier = Modifier
 ) {
     val c = LocalAppColors.current
@@ -51,23 +51,16 @@ fun QuoteBox(
             ),
         verticalArrangement = Arrangement.Center
     ) {
-        // Opening quote mark
-        Text(
-            text = "\u201C",
-            fontSize = 24.sp,
-            color = EmeraldGreen,
-            lineHeight = 24.sp,
-        )
-
         // Quote text
         Text(
             text = quoteText,
             color = c.foreground,
             fontStyle = FontStyle.Italic,
-            style = MaterialTheme.typography.bodyLarge.copy(
-                lineHeight = 24.sp
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontSize = 14.sp,
+                lineHeight = 18.sp
             ),
-            textAlign = TextAlign.Start,
+            textAlign = TextAlign.Justify,
             modifier = Modifier.fillMaxWidth()
         )
 
