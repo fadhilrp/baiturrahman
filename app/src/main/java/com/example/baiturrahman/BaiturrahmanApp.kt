@@ -8,6 +8,8 @@ import coil3.SingletonImageLoader
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.util.DebugLogger
 import com.example.baiturrahman.data.remote.SupabaseClient
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp as OkHttpEngine
 import com.example.baiturrahman.data.repository.AccountRepository
 import com.example.baiturrahman.di.appModule
 import kotlinx.coroutines.CoroutineScope
@@ -50,10 +52,14 @@ class BaiturrahmanApp : Application(), SingletonImageLoader.Factory {
         }
     }
 
-    // Coil 3 image loader with Ktor network support
+    // Coil 3 image loader — uses the same OCSP-tolerant OkHttpClient as the Supabase SDK
+    // so that TVs with strict OCSP enforcement can load images without SSLHandshakeException.
     override fun newImageLoader(context: PlatformContext): ImageLoader {
+        val httpClient = HttpClient(OkHttpEngine) {
+            engine { preconfigured = SupabaseClient.buildOkHttpClient() }
+        }
         return ImageLoader.Builder(context)
-            .components { add(KtorNetworkFetcherFactory()) }
+            .components { add(KtorNetworkFetcherFactory(httpClient)) }
             .logger(DebugLogger())
             .build()
     }

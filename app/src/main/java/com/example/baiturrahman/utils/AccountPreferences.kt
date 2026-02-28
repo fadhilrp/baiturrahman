@@ -21,7 +21,25 @@ class AccountPreferences(context: Context) {
         private const val KEY_DEVICE_LABEL = "device_label"
         private const val KEY_USERNAME = "username"
         private const val KEY_DARK_THEME = "dark_theme"
+        // GPS coordinates — device-local, not synced to Supabase.
+        // Stored as Long bits for full Double precision.
+        private const val KEY_PRAYER_LATITUDE = "prayer_latitude"
+        private const val KEY_PRAYER_LONGITUDE = "prayer_longitude"
     }
+
+    /** Last GPS latitude used for prayer time calculation. Null if not set or cleared. */
+    var prayerLatitude: Double?
+        get() = if (prefs.contains(KEY_PRAYER_LATITUDE))
+            Double.fromBits(prefs.getLong(KEY_PRAYER_LATITUDE, 0L)) else null
+        set(value) = if (value != null) prefs.edit { putLong(KEY_PRAYER_LATITUDE, value.toBits()) }
+                     else prefs.edit { remove(KEY_PRAYER_LATITUDE) }
+
+    /** Last GPS longitude used for prayer time calculation. Null if not set or cleared. */
+    var prayerLongitude: Double?
+        get() = if (prefs.contains(KEY_PRAYER_LONGITUDE))
+            Double.fromBits(prefs.getLong(KEY_PRAYER_LONGITUDE, 0L)) else null
+        set(value) = if (value != null) prefs.edit { putLong(KEY_PRAYER_LONGITUDE, value.toBits()) }
+                     else prefs.edit { remove(KEY_PRAYER_LONGITUDE) }
 
     private val _isDarkThemeFlow = MutableStateFlow(prefs.getBoolean(KEY_DARK_THEME, true))
     val isDarkThemeFlow: StateFlow<Boolean> = _isDarkThemeFlow.asStateFlow()

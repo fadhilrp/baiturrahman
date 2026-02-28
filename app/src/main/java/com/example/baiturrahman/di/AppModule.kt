@@ -5,6 +5,7 @@ import com.example.baiturrahman.data.remote.SupabaseSyncService
 import com.example.baiturrahman.data.repository.AccountRepository
 import com.example.baiturrahman.data.repository.ImageRepository
 import com.example.baiturrahman.data.repository.MosqueSettingsRepository
+import com.example.baiturrahman.data.repository.LocationRepository
 import com.example.baiturrahman.data.repository.PrayerTimeRepository
 import com.example.baiturrahman.data.repository.SupabasePostgresRepository
 import com.example.baiturrahman.ui.viewmodel.AuthViewModel
@@ -29,6 +30,7 @@ val appModule = module {
 
     // Repositories
     single { PrayerTimeRepository() }
+    single { LocationRepository() }
     single { SupabasePostgresRepository() }
     single { ImageRepository(androidApplication(), get()) }
     single { MosqueSettingsRepository(get(), get(), get(), get()) }
@@ -39,5 +41,5 @@ val appModule = module {
 
     // ViewModels
     viewModel { AuthViewModel(get(), get()) }
-    viewModel { MosqueDashboardViewModel(get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { MosqueDashboardViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
 }

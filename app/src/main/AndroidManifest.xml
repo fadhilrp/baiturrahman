@@ -20,6 +20,10 @@
         tools:ignore="SelectedPhotoAccess" />
     <uses-permission
         android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission
+        android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <application
         android:name=".BaiturrahmanApp"
         android:allowBackup="true"

@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,11 +34,13 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -79,6 +82,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.example.baiturrahman.ui.components.LocationSearchField
 import com.example.baiturrahman.ui.components.SupabaseImage
 import com.example.baiturrahman.ui.theme.EmeraldDark
 import com.example.baiturrahman.ui.theme.EmeraldGreen
@@ -113,12 +117,18 @@ fun AdminDashboard(
     val mosqueImages by viewModel.mosqueImages.collectAsState()
 
     var prayerAddress by remember { mutableStateOf(viewModel.prayerAddress.value) }
+    var addressConfirmed by remember { mutableStateOf(true) }
     var prayerTimezone by remember { mutableStateOf(viewModel.prayerTimezone.value) }
     var timezoneMenuExpanded by remember { mutableStateOf(false) }
+    val savedPrayerAddress by viewModel.prayerAddress.collectAsState()
+    val locationSuggestions by viewModel.locationSuggestions.collectAsState()
+    val isSearchingLocation by viewModel.isSearchingLocation.collectAsState()
+    val isGettingGps by viewModel.isGettingGps.collectAsState()
 
     val isSaving by viewModel.isSaving.collectAsState()
     val isUploadingImage by viewModel.isUploadingImage.collectAsState()
     val isUploadingLogo by viewModel.isUploadingLogo.collectAsState()
+    val isDeletingLogo by viewModel.isDeletingLogo.collectAsState()
     val isDeletingImage by viewModel.isDeletingImage.collectAsState()
     val isOffline by viewModel.isOffline.collectAsState()
     val connectedDevices by viewModel.connectedDevices.collectAsState()
@@ -137,6 +147,21 @@ fun AdminDashboard(
 
     LaunchedEffect(Unit) {
         viewModel.loadConnectedDevices()
+    }
+
+    // GPS result: update local address field and mark as confirmed
+    LaunchedEffect(Unit) {
+        viewModel.gpsAddressEvent.collect { address ->
+            prayerAddress = address
+            addressConfirmed = true
+        }
+    }
+
+    // Location / GPS error: show snackbar
+    LaunchedEffect(Unit) {
+        viewModel.locationErrorEvent.collect { msg ->
+            snackbarHostState.showSnackbar(msg)
+        }
     }
 
     val logoImage by viewModel.logoImage.collectAsState()
@@ -421,26 +446,51 @@ fun AdminDashboard(
                                     Text("Belum ada", color = c.textSecondary, fontSize = 10.sp, textAlign = TextAlign.Center)
                                 }
                             }
-                            Button(
-                                onClick = {
-                                    logoImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                                },
-                                enabled = !isUploadingLogo,
-                                colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                if (isUploadingLogo) {
-                                    CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Mengupload...")
-                                } else {
-                                    Icon(Icons.Default.Edit, "Ubah Logo")
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Ubah Logo")
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = {
+                                        logoImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                    },
+                                    enabled = !isUploadingLogo && !isDeletingLogo,
+                                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    if (isUploadingLogo) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Mengupload...")
+                                    } else {
+                                        Icon(Icons.Default.Edit, "Ubah Logo")
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Ubah Logo")
+                                    }
+                                }
+                                if (logoImage != null) {
+                                    OutlinedButton(
+                                        onClick = { viewModel.deleteLogoImage() },
+                                        enabled = !isUploadingLogo && !isDeletingLogo,
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                                        border = BorderStroke(1.dp, Color.Red),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        if (isDeletingLogo) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(18.dp),
+                                                color = Color.Red,
+                                                strokeWidth = 2.dp
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("Menghapus...")
+                                        } else {
+                                            Icon(Icons.Default.Delete, "Hapus Logo")
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("Hapus Logo")
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -451,13 +501,23 @@ fun AdminDashboard(
             // Prayer Time Settings
             AdminSection(title = "Pengaturan Waktu Sholat") {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    OutlinedTextField(
+                    val addressIsUnconfirmed = prayerAddress != savedPrayerAddress && !addressConfirmed
+                    LocationSearchField(
                         value = prayerAddress,
-                        onValueChange = { prayerAddress = it },
-                        label = { Text("Alamat Waktu Sholat") },
-                        modifier = Modifier.fillMaxWidth(),
+                        suggestions = locationSuggestions,
+                        isSearching = isSearchingLocation,
+                        isGettingGps = isGettingGps,
+                        isError = addressIsUnconfirmed,
+                        onValueChange = { prayerAddress = it; addressConfirmed = false },
+                        onSuggestionSelected = { prayerAddress = it; addressConfirmed = true; viewModel.clearGpsCoordinates() },
+                        onSearchQueryChanged = { viewModel.searchLocationSuggestions(it) },
+                        onGpsRequested = { viewModel.getLocationFromGps(context) },
+                        onClearSuggestions = { viewModel.clearLocationSuggestions() },
                         colors = textFieldColors,
-                        placeholder = { Text("contoh: Lebak Bulus, Jakarta, ID", color = c.textSecondary) }
+                        modifier = Modifier.fillMaxWidth(),
+                        supportingText = if (addressIsUnconfirmed) ({
+                            Text("Pilih lokasi dari dropdown atau gunakan GPS", color = androidx.compose.ui.graphics.Color.Red)
+                        }) else null
                     )
 
                     Column {
@@ -503,13 +563,13 @@ fun AdminDashboard(
                     minLines = 3,
                     supportingText = {
                         Text(
-                            "${quoteText.length}/100",
+                            "${quoteText.length}/150",
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.End,
-                            color = if (quoteText.length >= 100) Color.Red else c.textSecondary
+                            color = if (quoteText.length >= 150) Color.Red else c.textSecondary
                         )
                     },
-                    isError = quoteText.length >= 100
+                    isError = quoteText.length >= 150
                 )
             }
 
@@ -646,7 +706,7 @@ fun AdminDashboard(
                         snackbarHostState.showSnackbar("Pengaturan disimpan")
                     }
                 },
-                enabled = !isSaving,
+                enabled = !isSaving && (prayerAddress == savedPrayerAddress || addressConfirmed),
                 colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()

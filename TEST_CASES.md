@@ -32,7 +32,7 @@
 | SET-02 | Loading state saat simpan | 1. Tap "Simpan Perubahan" | Tombol menampilkan spinner + "Menyimpan...", tombol dinonaktifkan | Medium |
 | SET-03 | Batas karakter nama masjid | 1. Ketik di field "Nama Masjid" | Tidak bisa melebihi 35 karakter, counter berwarna merah saat di batas, `isError = true` | Medium |
 | SET-04 | Batas karakter lokasi masjid | 1. Ketik di field "Lokasi Masjid" | Tidak bisa melebihi 25 karakter, counter berwarna merah saat di batas | Medium |
-| SET-05 | Batas karakter kutipan | 1. Ketik di field "Teks Kutipan" | Tidak bisa melebihi 100 karakter, counter berwarna merah saat di batas | Medium |
+| SET-05 | Batas karakter kutipan | 1. Ketik di field "Teks Kutipan" | Tidak bisa melebihi 150 karakter, counter berwarna merah saat di batas | Medium |
 | SET-06 | Batas karakter teks berjalan | 1. Ketik di field "Teks Berjalan" | Tidak bisa melebihi 200 karakter, counter berwarna merah saat di batas | Medium |
 | SET-07 | Upload logo | 1. Tap "Ubah Logo" 2. Pilih gambar | Logo terupload ke Supabase Storage (storage-only, tanpa record `mosque_images`), logo lama dihapus, pengaturan auto-save | High |
 | SET-08 | Loading state saat upload logo | 1. Tap "Ubah Logo" dan pilih gambar | Tombol menampilkan spinner + "Mengupload...", tombol dinonaktifkan | Medium |

@@ -43,7 +43,8 @@ object SupabaseClient {
         install(Postgrest)
     }
 
-    private fun buildOkHttpClient(): OkHttpClient {
+    // Exposed so Coil's Ktor fetcher can share the same OCSP-tolerant client.
+    internal fun buildOkHttpClient(): OkHttpClient {
         val trustManager = buildOcspTolerantTrustManager()
         val sslContext = SSLContext.getInstance("TLS").apply {
             init(null, arrayOf(trustManager), null)

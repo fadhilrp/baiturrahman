@@ -1,5 +1,6 @@
 package com.example.baiturrahman.ui.viewmodel
 
+import android.content.Context
 import android.util.Log
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
@@ -9,14 +10,18 @@ import com.example.baiturrahman.data.model.PrayerData
 import com.example.baiturrahman.data.remote.SupabaseSyncService
 import com.example.baiturrahman.data.repository.AccountRepository
 import com.example.baiturrahman.data.repository.ImageRepository
+import com.example.baiturrahman.data.repository.LocationRepository
 import com.example.baiturrahman.data.repository.MosqueSettingsRepository
 import com.example.baiturrahman.data.repository.PrayerTimeRepository
 import com.example.baiturrahman.utils.AccountPreferences
 import com.example.baiturrahman.utils.NetworkConnectivityObserver
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.map
@@ -30,7 +35,8 @@ class MosqueDashboardViewModel(
     private val accountPreferences: AccountPreferences,
     private val syncService: SupabaseSyncService,
     private val accountRepository: AccountRepository,
-    connectivityObserver: NetworkConnectivityObserver
+    connectivityObserver: NetworkConnectivityObserver,
+    private val locationRepository: LocationRepository
 ) : ViewModel() {
 
     companion object {
@@ -80,6 +86,9 @@ class MosqueDashboardViewModel(
     private val _isUploadingLogo = MutableStateFlow(false)
     val isUploadingLogo: StateFlow<Boolean> = _isUploadingLogo.asStateFlow()
 
+    private val _isDeletingLogo = MutableStateFlow(false)
+    val isDeletingLogo: StateFlow<Boolean> = _isDeletingLogo.asStateFlow()
+
     private val _isDeletingImage = MutableStateFlow(false)
     val isDeletingImage: StateFlow<Boolean> = _isDeletingImage.asStateFlow()
 
@@ -108,10 +117,15 @@ class MosqueDashboardViewModel(
                     _mosqueName.value = it.mosqueName
                     _mosqueLocation.value = it.mosqueLocation
                     _logoImage.value = it.logoImage
+                    val addressChanged = it.prayerAddress != _prayerAddress.value
+                    val timezoneChanged = it.prayerTimezone != _prayerTimezone.value
                     _prayerAddress.value = it.prayerAddress
                     _prayerTimezone.value = it.prayerTimezone
                     _quoteText.value = it.quoteText
                     _marqueeText.value = it.marqueeText
+                    if (addressChanged || timezoneChanged) {
+                        fetchPrayerTimes()
+                    }
                 }
             }
         }
@@ -159,10 +173,14 @@ class MosqueDashboardViewModel(
     fun fetchPrayerTimes() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            prayerTimeRepository.getPrayerTimes(
-                address = _prayerAddress.value,
-                timezone = _prayerTimezone.value
-            ).fold(
+            val lat = accountPreferences.prayerLatitude
+            val lon = accountPreferences.prayerLongitude
+            val result = if (lat != null && lon != null) {
+                prayerTimeRepository.getPrayerTimesByCoords(lat, lon, _prayerTimezone.value)
+            } else {
+                prayerTimeRepository.getPrayerTimes(_prayerAddress.value, _prayerTimezone.value)
+            }
+            result.fold(
                 onSuccess = { prayerData ->
                     _uiState.value = _uiState.value.copy(prayerData = prayerData, isLoading = false)
                 },
@@ -227,6 +245,22 @@ class MosqueDashboardViewModel(
                 Log.e(TAG, "Error updating logo", e)
             } finally {
                 _isUploadingLogo.value = false
+            }
+        }
+    }
+
+    fun deleteLogoImage() {
+        val currentUrl = _logoImage.value ?: return
+        viewModelScope.launch {
+            _isDeletingLogo.value = true
+            try {
+                imageRepository.deleteLogoFromStorage(currentUrl)
+                _logoImage.value = null
+                saveAllSettingsInternal()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting logo", e)
+            } finally {
+                _isDeletingLogo.value = false
             }
         }
     }
@@ -296,6 +330,81 @@ class MosqueDashboardViewModel(
     }
 
     fun updatePrayerAddress(address: String) { _prayerAddress.value = address }
+
+    // ── Location search & GPS ────────────────────────────────────────────────
+
+    private val _locationSuggestions = MutableStateFlow<List<String>>(emptyList())
+    val locationSuggestions: StateFlow<List<String>> = _locationSuggestions.asStateFlow()
+
+    private val _isSearchingLocation = MutableStateFlow(false)
+    val isSearchingLocation: StateFlow<Boolean> = _isSearchingLocation.asStateFlow()
+
+    private val _isGettingGps = MutableStateFlow(false)
+    val isGettingGps: StateFlow<Boolean> = _isGettingGps.asStateFlow()
+
+    /** One-shot event: emits an address string resolved from GPS. */
+    private val _gpsAddressEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val gpsAddressEvent = _gpsAddressEvent.asSharedFlow()
+
+    /** One-shot event: emits a user-facing error message for location failures. */
+    private val _locationErrorEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val locationErrorEvent = _locationErrorEvent.asSharedFlow()
+
+    private var locationSearchJob: Job? = null
+
+    fun searchLocationSuggestions(query: String) {
+        locationSearchJob?.cancel()
+        if (query.length < 3) {
+            _locationSuggestions.value = emptyList()
+            return
+        }
+        locationSearchJob = viewModelScope.launch {
+            delay(400) // debounce — respects Nominatim's 1 req/s policy
+            _isSearchingLocation.value = true
+            _locationSuggestions.value = locationRepository.searchLocations(query)
+            _isSearchingLocation.value = false
+        }
+    }
+
+    fun clearLocationSuggestions() {
+        locationSearchJob?.cancel()
+        _locationSuggestions.value = emptyList()
+        _isSearchingLocation.value = false
+    }
+
+    fun getLocationFromGps(context: Context) {
+        viewModelScope.launch {
+            _isGettingGps.value = true
+            try {
+                val coords = locationRepository.getGpsCoordinates(context)
+                if (coords == null) {
+                    _locationErrorEvent.emit("GPS tidak aktif atau tidak tersedia pada perangkat ini")
+                } else {
+                    // Persist coordinates so fetchPrayerTimes uses the accurate endpoint directly
+                    accountPreferences.prayerLatitude = coords.first
+                    accountPreferences.prayerLongitude = coords.second
+                    // Reverse-geocode only for the address display field
+                    val address = locationRepository.reverseGeocode(coords.first, coords.second)
+                    if (address != null) {
+                        _gpsAddressEvent.emit(address)
+                    } else {
+                        _locationErrorEvent.emit("Gagal mendapatkan alamat dari koordinat GPS")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "GPS error", e)
+                _locationErrorEvent.emit("Gagal mendapatkan lokasi GPS")
+            } finally {
+                _isGettingGps.value = false
+            }
+        }
+    }
+
+    /** Call when the user confirms an address via the search dropdown (not GPS). */
+    fun clearGpsCoordinates() {
+        accountPreferences.prayerLatitude = null
+        accountPreferences.prayerLongitude = null
+    }
 
     fun updatePrayerTimezone(timezone: String) {
         if (timezone in availableTimezones) _prayerTimezone.value = timezone
