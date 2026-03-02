@@ -58,6 +58,9 @@ class MosqueDashboardViewModel(
     private val _marqueeText = MutableStateFlow("Lurus dan rapatkan shaf, mohon untuk mematikan alat komunikasi demi menjaga kesempurnaan sholat.")
     val marqueeText: StateFlow<String> = _marqueeText
 
+    private val _iqomahDurationMinutes = MutableStateFlow(10)
+    val iqomahDurationMinutes: StateFlow<Int> = _iqomahDurationMinutes
+
     private val _logoImage = MutableStateFlow<String?>(null)
     val logoImage: StateFlow<String?> = _logoImage
 
@@ -123,6 +126,7 @@ class MosqueDashboardViewModel(
                     _prayerTimezone.value = it.prayerTimezone
                     _quoteText.value = it.quoteText
                     _marqueeText.value = it.marqueeText
+                    _iqomahDurationMinutes.value = it.iqomahDurationMinutes
                     if (addressChanged || timezoneChanged) {
                         fetchPrayerTimes()
                     }
@@ -205,7 +209,8 @@ class MosqueDashboardViewModel(
                 prayerAddress = _prayerAddress.value,
                 prayerTimezone = _prayerTimezone.value,
                 quoteText = _quoteText.value,
-                marqueeText = _marqueeText.value
+                marqueeText = _marqueeText.value,
+                iqomahDurationMinutes = _iqomahDurationMinutes.value
             )
         }
     }
@@ -225,6 +230,7 @@ class MosqueDashboardViewModel(
     fun updateMosqueName(name: String) { _mosqueName.value = name }
     fun updateMosqueLocation(location: String) { _mosqueLocation.value = location }
     fun updateMarqueeText(text: String) { _marqueeText.value = text }
+    fun updateIqomahDurationMinutes(minutes: Int) { _iqomahDurationMinutes.value = minutes.coerceIn(5, 15) }
 
     fun updateLogoImage(uri: String) {
         viewModelScope.launch {

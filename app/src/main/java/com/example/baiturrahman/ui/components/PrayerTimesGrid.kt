@@ -49,6 +49,7 @@ import java.time.temporal.ChronoUnit
 @Composable
 fun PrayerTimesGrid(
     timings: PrayerTimings?,
+    iqomahDurationMinutes: Int = 10,
     isMobile: Boolean = false
 ) {
     val context = LocalContext.current
@@ -106,7 +107,7 @@ fun PrayerTimesGrid(
                     isIqomahTime = true
                     currentIqomahPrayer = prayerName
                     currentPrayerName = prayerName
-                    iqomahEndTime = prayerTime.plusMinutes(10)
+                    iqomahEndTime = prayerTime.plusMinutes(iqomahDurationMinutes.toLong())
                     shouldPlayPrayerAlarm = true
                     break
                 }

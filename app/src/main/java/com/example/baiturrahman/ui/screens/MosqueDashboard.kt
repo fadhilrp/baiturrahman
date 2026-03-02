@@ -50,6 +50,7 @@ fun MosqueDashboard(
     val showRegisterScreen  = remember { mutableStateOf(false) }
     val mosqueImages by viewModel.mosqueImages.collectAsState()
     val currentImageIndex by viewModel.currentImageIndex.collectAsState()
+    val iqomahDurationMinutes by viewModel.iqomahDurationMinutes.collectAsState()
 
     var contentVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { contentVisible = true }
@@ -132,6 +133,7 @@ fun MosqueDashboard(
                         uiState = uiState,
                         mosqueImages = mosqueImages,
                         currentImageIndex = currentImageIndex,
+                        iqomahDurationMinutes = iqomahDurationMinutes,
                     )
                 } else {
                     TvDashboardLayout(
@@ -139,6 +141,7 @@ fun MosqueDashboard(
                         uiState = uiState,
                         mosqueImages = mosqueImages,
                         currentImageIndex = currentImageIndex,
+                        iqomahDurationMinutes = iqomahDurationMinutes,
                         onSettingsClick = { if (isLoggedIn) showAdminDashboard.value = true else showLoginScreen.value = true },
                     )
                 }
@@ -171,6 +174,7 @@ private fun TvDashboardLayout(
     uiState: MosqueDashboardViewModel.MosqueDashboardUiState,
     mosqueImages: List<String>,
     currentImageIndex: Int,
+    iqomahDurationMinutes: Int,
     onSettingsClick: () -> Unit,
 ) {
     val c = LocalAppColors.current
@@ -208,7 +212,8 @@ private fun TvDashboardLayout(
                             .align(Alignment.BottomCenter),
                     ) {
                         NextPrayerCountdown(
-                            timings = uiState.prayerData?.timings
+                            timings = uiState.prayerData?.timings,
+                            iqomahDurationMinutes = iqomahDurationMinutes
                         )
                     }
 
@@ -283,6 +288,7 @@ private fun TvDashboardLayout(
             } else {
                 PrayerTimesGrid(
                     timings = uiState.prayerData?.timings,
+                    iqomahDurationMinutes = iqomahDurationMinutes,
                     isMobile = false
                 )
             }
@@ -300,6 +306,7 @@ private fun MobileDashboardLayout(
     uiState: MosqueDashboardViewModel.MosqueDashboardUiState,
     mosqueImages: List<String>,
     currentImageIndex: Int,
+    iqomahDurationMinutes: Int,
 ) {
     val c = LocalAppColors.current
     Column(modifier = Modifier.fillMaxSize()) {
@@ -364,6 +371,7 @@ private fun MobileDashboardLayout(
                 } else {
                     PrayerTimesGrid(
                         timings = uiState.prayerData?.timings,
+                        iqomahDurationMinutes = iqomahDurationMinutes,
                         isMobile = true
                     )
                 }
@@ -377,7 +385,7 @@ private fun MobileDashboardLayout(
                     .padding(bottom = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
-                NextPrayerCountdown(timings = uiState.prayerData?.timings)
+                NextPrayerCountdown(timings = uiState.prayerData?.timings, iqomahDurationMinutes = iqomahDurationMinutes)
             }
         }
 

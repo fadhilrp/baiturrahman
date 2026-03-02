@@ -36,6 +36,9 @@ data class MosqueSettingsRemote(
     @SerialName("marquee_text")
     val marqueeText: String = "Lurus dan rapatkan shaf, mohon untuk mematikan alat komunikasi demi menjaga kesempurnaan sholat.",
 
+    @SerialName("iqomah_duration_minutes")
+    val iqomahDurationMinutes: Int = 10,
+
     @SerialName("updated_at")
     val updatedAt: String = ""
 )

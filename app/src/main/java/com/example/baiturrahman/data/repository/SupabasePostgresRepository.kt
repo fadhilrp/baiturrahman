@@ -184,7 +184,8 @@ class SupabasePostgresRepository {
         prayerAddress: String,
         prayerTimezone: String,
         quoteText: String,
-        marqueeText: String
+        marqueeText: String,
+        iqomahDurationMinutes: Int = 10
     ) {
         try {
             val params = buildJsonObject {
@@ -196,6 +197,7 @@ class SupabasePostgresRepository {
                 put("p_prayer_timezone", prayerTimezone)
                 put("p_quote_text", quoteText)
                 put("p_marquee_text", marqueeText)
+                put("p_iqomah_duration_minutes", iqomahDurationMinutes)
             }
             client.postgrest.rpc("upsert_settings_by_token", params)
             Log.d(TAG, "upsertSettingsByToken succeeded")

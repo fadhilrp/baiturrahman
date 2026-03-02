@@ -38,11 +38,19 @@ fun buildPrayerTimeObjects(prayerTimes: Map<String, String>): Map<String, LocalT
     }
 }
 
-fun playAlarmSound(mediaPlayer: MediaPlayer) {
+fun playAlarmSound(mediaPlayer: MediaPlayer, repeatCount: Int = 8) {
     try {
         if (mediaPlayer.isPlaying) {
             mediaPlayer.stop()
             mediaPlayer.prepare()
+        }
+        var remaining = repeatCount - 1
+        mediaPlayer.setOnCompletionListener {
+            if (remaining > 0) {
+                remaining--
+                it.seekTo(0)
+                it.start()
+            }
         }
         mediaPlayer.start()
     } catch (e: Exception) {

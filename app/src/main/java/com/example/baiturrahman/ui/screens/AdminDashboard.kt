@@ -56,6 +56,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -116,6 +117,7 @@ fun AdminDashboard(
     var mosqueName by remember { mutableStateOf(viewModel.mosqueName.value) }
     var mosqueLocation by remember { mutableStateOf(viewModel.mosqueLocation.value) }
     var marqueeText by remember { mutableStateOf(viewModel.marqueeText.value) }
+    var iqomahDurationMinutes by remember { mutableStateOf(viewModel.iqomahDurationMinutes.value) }
     val mosqueImages by viewModel.mosqueImages.collectAsState()
 
     var prayerAddress by remember { mutableStateOf(viewModel.prayerAddress.value) }
@@ -133,6 +135,7 @@ fun AdminDashboard(
     val savedQuoteText by viewModel.quoteText.collectAsState()
     val savedMarqueeText by viewModel.marqueeText.collectAsState()
     val savedPrayerTimezone by viewModel.prayerTimezone.collectAsState()
+    val savedIqomahDurationMinutes by viewModel.iqomahDurationMinutes.collectAsState()
 
     val isSaving by viewModel.isSaving.collectAsState()
     val isUploadingImage by viewModel.isUploadingImage.collectAsState()
@@ -149,7 +152,8 @@ fun AdminDashboard(
         quoteText != savedQuoteText ||
         marqueeText != savedMarqueeText ||
         prayerAddress != savedPrayerAddress ||
-        prayerTimezone != savedPrayerTimezone
+        prayerTimezone != savedPrayerTimezone ||
+        iqomahDurationMinutes != savedIqomahDurationMinutes
 
     var showDiscardDialog by remember { mutableStateOf(false) }
 
@@ -579,6 +583,47 @@ fun AdminDashboard(
                 }
             }
 
+            // Iqomah Duration Section
+            AdminSection(title = "Durasi Iqomah") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Waktu Iqomah", color = c.textPrimary, fontWeight = FontWeight.Medium)
+                        Text(
+                            "$iqomahDurationMinutes menit",
+                            color = EmeraldGreen,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Slider(
+                        value = iqomahDurationMinutes.toFloat(),
+                        onValueChange = { iqomahDurationMinutes = it.toInt() },
+                        valueRange = 5f..15f,
+                        steps = 9,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = androidx.compose.material3.SliderDefaults.colors(
+                            thumbColor = EmeraldGreen,
+                            activeTrackColor = EmeraldGreen,
+                            inactiveTrackColor = EmeraldDark
+                        )
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("5 menit", color = c.textSecondary, fontSize = 12.sp)
+                        Text("15 menit", color = c.textSecondary, fontSize = 12.sp)
+                    }
+                    Text(
+                        "Durasi tampilan iqomah setelah waktu sholat tiba.",
+                        color = c.textSecondary, fontSize = 13.sp
+                    )
+                }
+            }
+
             // Quote Section
             AdminSection(title = "Pengaturan Kutipan") {
                 OutlinedTextField(
@@ -807,6 +852,7 @@ fun AdminDashboard(
                         viewModel.updateMarqueeText(marqueeText)
                         viewModel.updatePrayerAddress(prayerAddress)
                         viewModel.updatePrayerTimezone(prayerTimezone)
+                        viewModel.updateIqomahDurationMinutes(iqomahDurationMinutes)
                         viewModel.saveAllSettings()
                         viewModel.fetchPrayerTimes()
                         snackbarHostState.showSnackbar("Pengaturan disimpan")

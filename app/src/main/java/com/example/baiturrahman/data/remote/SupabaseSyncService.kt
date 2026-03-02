@@ -153,7 +153,8 @@ class SupabaseSyncService(
                             localSettings.prayerAddress != remoteSettings.prayerAddress ||
                             localSettings.prayerTimezone != remoteSettings.prayerTimezone ||
                             localSettings.quoteText != remoteSettings.quoteText ||
-                            localSettings.marqueeText != remoteSettings.marqueeText
+                            localSettings.marqueeText != remoteSettings.marqueeText ||
+                            localSettings.iqomahDurationMinutes != remoteSettings.iqomahDurationMinutes
 
                         if (isDifferent) {
                             Log.d(TAG, "Settings changed — updating local DB")
@@ -166,6 +167,7 @@ class SupabaseSyncService(
                                 prayerTimezone = remoteSettings.prayerTimezone,
                                 quoteText = remoteSettings.quoteText,
                                 marqueeText = remoteSettings.marqueeText,
+                                iqomahDurationMinutes = remoteSettings.iqomahDurationMinutes,
                                 pushToRemote = false
                             )
                             Log.d(TAG, "Settings synced")

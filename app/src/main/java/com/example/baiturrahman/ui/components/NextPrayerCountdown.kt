@@ -48,7 +48,8 @@ import java.time.temporal.ChronoUnit
 @Composable
 fun NextPrayerCountdown(
     timings: PrayerTimings?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    iqomahDurationMinutes: Int = 10
 ) {
     val c = LocalAppColors.current
     val widthDp = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() }
@@ -105,7 +106,7 @@ fun NextPrayerCountdown(
 
                     isIqomahTime = true
                     currentPrayerName = prayerName
-                    iqomahEndTime = prayerTime.plusMinutes(10)
+                    iqomahEndTime = prayerTime.plusMinutes(iqomahDurationMinutes.toLong())
                     shouldPlayPrayerAlarm = true
                     break
                 }

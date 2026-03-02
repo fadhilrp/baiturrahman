@@ -12,7 +12,7 @@ import com.example.baiturrahman.data.local.entity.MosqueSettings
 
 @Database(
     entities = [MosqueSettings::class, MosqueImage::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -41,6 +41,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from version 2 to 3 - add iqomah duration to mosque_settings
+        private val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                Log.d(TAG, "Migrating database from version 2 to 3")
+                db.execSQL("ALTER TABLE mosque_settings ADD COLUMN iqomahDurationMinutes INTEGER NOT NULL DEFAULT 10")
+                Log.d(TAG, "Migration 2→3 completed")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 Log.d(TAG, "Creating new database instance")
@@ -49,7 +58,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "baiturrahman_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance

@@ -36,6 +36,7 @@ class MosqueSettingsRepository(
         prayerTimezone: String,
         quoteText: String,
         marqueeText: String,
+        iqomahDurationMinutes: Int = 10,
         pushToRemote: Boolean = true
     ) {
         val settings = MosqueSettings(
@@ -45,7 +46,8 @@ class MosqueSettingsRepository(
             prayerAddress = prayerAddress,
             prayerTimezone = prayerTimezone,
             quoteText = quoteText,
-            marqueeText = marqueeText
+            marqueeText = marqueeText,
+            iqomahDurationMinutes = iqomahDurationMinutes
         )
         mosqueSettingsDao.insertSettings(settings)
         Log.d(TAG, "Settings saved to local DB")
@@ -60,7 +62,8 @@ class MosqueSettingsRepository(
                     prayerAddress = prayerAddress,
                     prayerTimezone = prayerTimezone,
                     quoteText = quoteText,
-                    marqueeText = marqueeText
+                    marqueeText = marqueeText,
+                    iqomahDurationMinutes = iqomahDurationMinutes
                 )
                 Log.d(TAG, "Settings pushed to remote")
             } catch (e: Exception) {
