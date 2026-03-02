@@ -67,6 +67,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -116,7 +117,7 @@ fun AdminDashboard(
     var quoteText by remember { mutableStateOf(viewModel.quoteText.value) }
     var mosqueName by remember { mutableStateOf(viewModel.mosqueName.value) }
     var mosqueLocation by remember { mutableStateOf(viewModel.mosqueLocation.value) }
-    var marqueeText by remember { mutableStateOf(viewModel.marqueeText.value) }
+    val marqueeLines = remember { mutableStateListOf(*viewModel.marqueeLines.value.toTypedArray()) }
     var iqomahDurationMinutes by remember { mutableStateOf(viewModel.iqomahDurationMinutes.value) }
     val mosqueImages by viewModel.mosqueImages.collectAsState()
 
@@ -133,7 +134,7 @@ fun AdminDashboard(
     val savedMosqueName by viewModel.mosqueName.collectAsState()
     val savedMosqueLocation by viewModel.mosqueLocation.collectAsState()
     val savedQuoteText by viewModel.quoteText.collectAsState()
-    val savedMarqueeText by viewModel.marqueeText.collectAsState()
+    val savedMarqueeLines by viewModel.marqueeLines.collectAsState()
     val savedPrayerTimezone by viewModel.prayerTimezone.collectAsState()
     val savedIqomahDurationMinutes by viewModel.iqomahDurationMinutes.collectAsState()
 
@@ -150,7 +151,7 @@ fun AdminDashboard(
     val hasUnsavedChanges = mosqueName != savedMosqueName ||
         mosqueLocation != savedMosqueLocation ||
         quoteText != savedQuoteText ||
-        marqueeText != savedMarqueeText ||
+        marqueeLines.toList() != savedMarqueeLines ||
         prayerAddress != savedPrayerAddress ||
         prayerTimezone != savedPrayerTimezone ||
         iqomahDurationMinutes != savedIqomahDurationMinutes
@@ -726,22 +727,58 @@ fun AdminDashboard(
 
             // Marquee Text Section
             AdminSection(title = "Teks Berjalan") {
-                OutlinedTextField(
-                    value = marqueeText,
-                    onValueChange = { if (it.length <= 150) marqueeText = it },
-                    label = { Text("Teks Berjalan") },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = textFieldColors,
-                    supportingText = {
-                        Text(
-                            "${marqueeText.length}/150",
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.End,
-                            color = if (marqueeText.length >= 150) Color.Red else c.textSecondary
-                        )
-                    },
-                    isError = marqueeText.length >= 150
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    marqueeLines.forEachIndexed { index, line ->
+                        Row(
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = line,
+                                onValueChange = { if (it.length <= 150) marqueeLines[index] = it },
+                                label = { Text("Baris ${index + 1}") },
+                                modifier = Modifier.weight(1f),
+                                colors = textFieldColors,
+                                supportingText = {
+                                    Text(
+                                        "${line.length}/150",
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.End,
+                                        color = if (line.length >= 150) Color.Red else c.textSecondary
+                                    )
+                                },
+                                isError = line.length >= 150
+                            )
+                            if (index > 0) {
+                                IconButton(
+                                    onClick = { marqueeLines.removeAt(index) },
+                                    modifier = Modifier.padding(top = 4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Hapus Baris",
+                                        tint = Color.Red
+                                    )
+                                }
+                            } else {
+                                Spacer(Modifier.width(48.dp))
+                            }
+                        }
+                    }
+                    if (marqueeLines.size < 3) {
+                        OutlinedButton(
+                            onClick = { marqueeLines.add("") },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = EmeraldGreen),
+                            border = BorderStroke(1.dp, EmeraldGreen),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Tambah Baris (${marqueeLines.size}/3)")
+                        }
+                    }
+                }
             }
 
             // Theme Toggle Section
@@ -849,7 +886,7 @@ fun AdminDashboard(
                         viewModel.updateQuoteText(quoteText)
                         viewModel.updateMosqueName(mosqueName)
                         viewModel.updateMosqueLocation(mosqueLocation)
-                        viewModel.updateMarqueeText(marqueeText)
+                        viewModel.updateMarqueeLines(marqueeLines.toList())
                         viewModel.updatePrayerAddress(prayerAddress)
                         viewModel.updatePrayerTimezone(prayerTimezone)
                         viewModel.updateIqomahDurationMinutes(iqomahDurationMinutes)

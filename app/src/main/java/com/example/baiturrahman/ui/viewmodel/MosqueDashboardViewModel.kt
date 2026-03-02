@@ -58,6 +58,13 @@ class MosqueDashboardViewModel(
     private val _marqueeText = MutableStateFlow("Lurus dan rapatkan shaf, mohon untuk mematikan alat komunikasi demi menjaga kesempurnaan sholat.")
     val marqueeText: StateFlow<String> = _marqueeText
 
+    /** Parsed list of lines from marqueeText (split on "|||"). Always has ≥ 1 element. */
+    val marqueeLines: StateFlow<List<String>> = _marqueeText
+        .map { text ->
+            text.split("|||").filter { it.isNotBlank() }.ifEmpty { listOf("") }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, listOf(""))
+
     private val _iqomahDurationMinutes = MutableStateFlow(10)
     val iqomahDurationMinutes: StateFlow<Int> = _iqomahDurationMinutes
 
@@ -230,6 +237,9 @@ class MosqueDashboardViewModel(
     fun updateMosqueName(name: String) { _mosqueName.value = name }
     fun updateMosqueLocation(location: String) { _mosqueLocation.value = location }
     fun updateMarqueeText(text: String) { _marqueeText.value = text }
+    fun updateMarqueeLines(lines: List<String>) {
+        _marqueeText.value = lines.filter { it.isNotBlank() }.joinToString("|||")
+    }
     fun updateIqomahDurationMinutes(minutes: Int) { _iqomahDurationMinutes.value = minutes.coerceIn(5, 15) }
 
     fun updateLogoImage(uri: String) {

@@ -209,7 +209,8 @@ private fun TvDashboardLayout(
                     // Next prayer indicator overlay at bottom center of slider
                     Box(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter),
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 4.dp)
                     ) {
                         NextPrayerCountdown(
                             timings = uiState.prayerData?.timings,
@@ -295,8 +296,8 @@ private fun TvDashboardLayout(
         }
 
         // Marquee pinned to very bottom, outside padding
-        val text by viewModel.marqueeText.collectAsState()
-        MarqueeText(text = text)
+        val marqueeLines by viewModel.marqueeLines.collectAsState()
+        MarqueeText(lines = marqueeLines)
     }
 }
 
@@ -391,8 +392,8 @@ private fun MobileDashboardLayout(
 
         // navigationBarsPadding keeps marquee above the gesture/button nav bar (API 35+)
         Box(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
-            val text by viewModel.marqueeText.collectAsState()
-            MarqueeText(text = text)
+            val marqueeLines by viewModel.marqueeLines.collectAsState()
+            MarqueeText(lines = marqueeLines)
         }
     }
 }

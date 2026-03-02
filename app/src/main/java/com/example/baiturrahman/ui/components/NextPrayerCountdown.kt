@@ -7,10 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -154,19 +151,14 @@ fun NextPrayerCountdown(
         label = "countdown_time"
     )
 
-    val shape = if (isMobile) {
-        RoundedCornerShape(50.dp)
-    } else {
-        RoundedCornerShape(
-            topStart = 24.dp,
-            topEnd = 24.dp,
-            bottomStart = 0.dp,
-            bottomEnd = 0.dp
-        )
-    }
+    val shape = RoundedCornerShape(50.dp)
 
     val bgColor by animateColorAsState(
-        targetValue = if (isIqomahTime) GoldAccent.copy(alpha = 0.85f) else c.glassWhite,
+        targetValue = when {
+            isIqomahTime -> GoldAccent
+            isMobile -> c.glassWhite
+            else -> c.surface
+        },
         animationSpec = tween(durationMillis = STANDARD_DURATION),
         label = "countdown_bg"
     )
@@ -227,21 +219,24 @@ fun NextPrayerCountdown(
                 fontFamily = JetBrainsMono,
                 fontSize = 16.sp,
             )
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = displayPrayerName,
                     style = nameStyle,
                     color = nameColor,
-                    textAlign = TextAlign.Center,
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "  ·  ",
+                    style = TextStyle(fontFamily = PlusJakartaSans, fontSize = 20.sp),
+                    color = nameColor.copy(alpha = 0.5f),
+                )
                 Text(
                     text = timeRemaining,
                     style = countdownStyle,
                     color = countdownColor,
-                    textAlign = TextAlign.Center,
                 )
             }
         }

@@ -33,12 +33,16 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun MarqueeText(
-    text: String = "Lurus dan rapatkan shaf, mohon untuk mematikan alat komunikasi demi menjaga kesempurnaan sholat.",
+    lines: List<String>,
 ) {
     val c = LocalAppColors.current
     val localDensity = LocalDensity.current
     val widthDp = with(localDensity) { LocalWindowInfo.current.containerSize.width.toDp() }
     val isMobile = widthDp < 600.dp
+
+    var currentLineIndex by remember { mutableIntStateOf(0) }
+    val currentLine = if (lines.isEmpty()) "" else lines[currentLineIndex % lines.size]
+
     var offset by remember { mutableFloatStateOf(0f) }
     // Large default prevents a premature reset before onSizeChanged fires for long text
     var textWidthDp by remember { mutableIntStateOf(4000) }
@@ -49,13 +53,18 @@ fun MarqueeText(
     // Always start off-screen to the right, adapting to any screen size (TV, tablet, phone)
     val resetPosition = widthDp.value + 100f
 
-    LaunchedEffect(text) {
-        // Reset scroll position whenever text changes
+    LaunchedEffect(lines) {
+        // Reset to first line whenever the list changes
+        currentLineIndex = 0
         offset = resetPosition
-        while(true) {
+        while (true) {
             delay(14)
             offset -= speed
-            if (offset < -textWidthDp.toFloat()) offset = resetPosition
+            if (offset < -textWidthDp.toFloat()) {
+                // Advance to next line (cycles back to 0 at the end)
+                currentLineIndex = (currentLineIndex + 1) % lines.size.coerceAtLeast(1)
+                offset = resetPosition
+            }
         }
     }
 
@@ -78,7 +87,7 @@ fun MarqueeText(
                 .height(if (isMobile) 35.dp else 40.dp)
         ) {
             Text(
-                text = text,
+                text = currentLine,
                 style = TextStyle(
                     fontFamily = PlusJakartaSans,
                     fontSize = 14.sp,
