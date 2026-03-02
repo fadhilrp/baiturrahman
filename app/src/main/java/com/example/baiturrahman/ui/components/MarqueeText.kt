@@ -40,13 +40,14 @@ fun MarqueeText(
     val widthDp = with(localDensity) { LocalWindowInfo.current.containerSize.width.toDp() }
     val isMobile = widthDp < 600.dp
     var offset by remember { mutableFloatStateOf(0f) }
-    var textWidthDp by remember { mutableIntStateOf(800) }
+    // Large default prevents a premature reset before onSizeChanged fires for long text
+    var textWidthDp by remember { mutableIntStateOf(4000) }
 
-    val baseSpeed = 1f
-    val speedMultiplier = maxOf(0.8f, minOf(1.5f, 100f / text.length.toFloat()))
-    val speed = baseSpeed * speedMultiplier
+    // Target ~250 px/s regardless of screen density (14 ms per tick)
+    val speed = 3.5f / localDensity.density
 
-    val resetPosition = if (isMobile) widthDp.value + 100f else 980f
+    // Always start off-screen to the right, adapting to any screen size (TV, tablet, phone)
+    val resetPosition = widthDp.value + 100f
 
     LaunchedEffect(text) {
         // Reset scroll position whenever text changes
@@ -92,7 +93,7 @@ fun MarqueeText(
                 modifier = Modifier
                     .graphicsLayer { translationX = offset * localDensity.density }
                     .padding(vertical = if (isMobile) 8.dp else 10.dp)
-                    .wrapContentWidth()
+                    .wrapContentWidth(unbounded = true)
                     .onSizeChanged { size ->
                         textWidthDp = with(localDensity) { size.width.toDp() }.value.toInt() + 50
                     }

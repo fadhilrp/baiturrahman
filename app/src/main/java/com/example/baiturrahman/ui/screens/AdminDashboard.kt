@@ -3,6 +3,7 @@ package com.example.baiturrahman.ui.screens
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -38,6 +39,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -125,6 +127,13 @@ fun AdminDashboard(
     val isSearchingLocation by viewModel.isSearchingLocation.collectAsState()
     val isGettingGps by viewModel.isGettingGps.collectAsState()
 
+    // Mirror of ViewModel state — used to detect unsaved changes
+    val savedMosqueName by viewModel.mosqueName.collectAsState()
+    val savedMosqueLocation by viewModel.mosqueLocation.collectAsState()
+    val savedQuoteText by viewModel.quoteText.collectAsState()
+    val savedMarqueeText by viewModel.marqueeText.collectAsState()
+    val savedPrayerTimezone by viewModel.prayerTimezone.collectAsState()
+
     val isSaving by viewModel.isSaving.collectAsState()
     val isUploadingImage by viewModel.isUploadingImage.collectAsState()
     val isUploadingLogo by viewModel.isUploadingLogo.collectAsState()
@@ -134,6 +143,15 @@ fun AdminDashboard(
     val connectedDevices by viewModel.connectedDevices.collectAsState()
     val currentUsername: String? by authViewModel.currentUsername.collectAsState()
     val isDarkTheme by accountPreferences.isDarkThemeFlow.collectAsState()
+
+    val hasUnsavedChanges = mosqueName != savedMosqueName ||
+        mosqueLocation != savedMosqueLocation ||
+        quoteText != savedQuoteText ||
+        marqueeText != savedMarqueeText ||
+        prayerAddress != savedPrayerAddress ||
+        prayerTimezone != savedPrayerTimezone
+
+    var showDiscardDialog by remember { mutableStateOf(false) }
 
     // Change password state
     var showChangePassword by remember { mutableStateOf(false) }
@@ -162,6 +180,11 @@ fun AdminDashboard(
         viewModel.locationErrorEvent.collect { msg ->
             snackbarHostState.showSnackbar(msg)
         }
+    }
+
+    // Intercept system back when there are unsaved changes
+    BackHandler(enabled = !showChangePassword && hasUnsavedChanges) {
+        showDiscardDialog = true
     }
 
     val logoImage by viewModel.logoImage.collectAsState()
@@ -222,7 +245,11 @@ fun AdminDashboard(
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = { if (showChangePassword) showChangePassword = false else onClose() }) {
+                        IconButton(onClick = {
+                            if (showChangePassword) showChangePassword = false
+                            else if (hasUnsavedChanges) showDiscardDialog = true
+                            else onClose()
+                        }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
                         }
                     },
@@ -656,19 +683,19 @@ fun AdminDashboard(
             AdminSection(title = "Teks Berjalan") {
                 OutlinedTextField(
                     value = marqueeText,
-                    onValueChange = { if (it.length <= 200) marqueeText = it },
+                    onValueChange = { if (it.length <= 150) marqueeText = it },
                     label = { Text("Teks Berjalan") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = textFieldColors,
                     supportingText = {
                         Text(
-                            "${marqueeText.length}/200",
+                            "${marqueeText.length}/150",
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.End,
-                            color = if (marqueeText.length >= 200) Color.Red else c.textSecondary
+                            color = if (marqueeText.length >= 150) Color.Red else c.textSecondary
                         )
                     },
-                    isError = marqueeText.length >= 200
+                    isError = marqueeText.length >= 150
                 )
             }
 
@@ -688,37 +715,6 @@ fun AdminDashboard(
                             checkedTrackColor = EmeraldDark
                         )
                     )
-                }
-            }
-
-            // Save settings button
-            Button(
-                onClick = {
-                    scope.launch {
-                        viewModel.updateQuoteText(quoteText)
-                        viewModel.updateMosqueName(mosqueName)
-                        viewModel.updateMosqueLocation(mosqueLocation)
-                        viewModel.updateMarqueeText(marqueeText)
-                        viewModel.updatePrayerAddress(prayerAddress)
-                        viewModel.updatePrayerTimezone(prayerTimezone)
-                        viewModel.saveAllSettings()
-                        viewModel.fetchPrayerTimes()
-                        snackbarHostState.showSnackbar("Pengaturan disimpan")
-                    }
-                },
-                enabled = !isSaving && (prayerAddress == savedPrayerAddress || addressConfirmed),
-                colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (isSaving) {
-                    CircularProgressIndicator(Modifier.size(18.dp), Color.White, 2.dp)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Menyimpan...")
-                } else {
-                    Icon(Icons.Default.Check, "Simpan")
-                    Spacer(Modifier.width(8.dp))
-                    Text("Simpan Perubahan")
                 }
             }
 
@@ -801,8 +797,56 @@ fun AdminDashboard(
                 Text("Keluar", color = Color.White, fontSize = 16.sp)
             }
 
+            // Save settings button — pinned to very bottom
+            Button(
+                onClick = {
+                    scope.launch {
+                        viewModel.updateQuoteText(quoteText)
+                        viewModel.updateMosqueName(mosqueName)
+                        viewModel.updateMosqueLocation(mosqueLocation)
+                        viewModel.updateMarqueeText(marqueeText)
+                        viewModel.updatePrayerAddress(prayerAddress)
+                        viewModel.updatePrayerTimezone(prayerTimezone)
+                        viewModel.saveAllSettings()
+                        viewModel.fetchPrayerTimes()
+                        snackbarHostState.showSnackbar("Pengaturan disimpan")
+                    }
+                },
+                enabled = !isSaving && (prayerAddress == savedPrayerAddress || addressConfirmed),
+                colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(Modifier.size(18.dp), Color.White, 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Menyimpan...")
+                } else {
+                    Icon(Icons.Default.Check, "Simpan")
+                    Spacer(Modifier.width(8.dp))
+                    Text("Simpan Perubahan")
+                }
+            }
+
             Spacer(Modifier.height(16.dp))
         } // end else Column
+    }
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Perubahan belum disimpan") },
+            text = { Text("Anda memiliki perubahan yang belum disimpan. Yakin ingin keluar tanpa menyimpan?") },
+            confirmButton = {
+                TextButton(
+                    onClick = { showDiscardDialog = false; onClose() },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                ) { Text("Tinggalkan") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) { Text("Batal") }
+            }
+        )
     }
 }
 

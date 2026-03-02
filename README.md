@@ -101,7 +101,13 @@ Di bagian **"Pengaturan Header"** pada Admin Dashboard:
 4. Preview logo saat ini tampil di sebelah kiri tombol.
 5. Jika belum ada logo, akan tertulis "Belum ada".
 
-> Logo tidak memerlukan tap "Simpan Perubahan" — tersimpan otomatis setelah upload selesai.
+### Menghapus Logo
+- Jika logo sudah ada, tombol merah **"Hapus Logo"** muncul di bawah tombol "Ubah Logo".
+- Tap tombol tersebut untuk menghapus logo dari semua perangkat.
+- Tombol berubah menjadi "Menghapus..." selama proses berlangsung.
+- Selama penghapusan berjalan, tombol "Ubah Logo" juga dinonaktifkan sementara.
+
+> Logo tidak memerlukan tap "Simpan Perubahan" — upload dan hapus tersimpan otomatis.
 
 ---
 
@@ -110,9 +116,23 @@ Di bagian **"Pengaturan Header"** pada Admin Dashboard:
 Di bagian **"Pengaturan Waktu Sholat"**:
 
 ### Alamat Waktu Sholat
-- Masukkan alamat atau kota yang digunakan sebagai referensi penghitungan waktu sholat.
-- Contoh format: `Lebak Bulus, Jakarta, ID` atau `Makassar, ID`
-- Waktu sholat otomatis diperbarui saat pengaturan disimpan.
+
+Field alamat mendukung dua cara input:
+
+**Cara 1 — Gunakan GPS (direkomendasikan)**
+1. Tap ikon **📍 (lokasi)** di sisi kanan field alamat.
+2. Jika diminta izin lokasi, pilih **Izinkan**.
+3. Aplikasi akan mendeteksi lokasi perangkat secara otomatis dan mengisi field alamat.
+4. Waktu sholat akan dihitung langsung dari koordinat GPS — lebih akurat dibanding pencarian teks.
+
+> Jika GPS tidak aktif atau perangkat tidak memiliki GPS (mis. TV), akan muncul notifikasi "GPS tidak aktif atau tidak tersedia".
+
+**Cara 2 — Cari lokasi manual**
+1. Ketik nama kota atau alamat di field (minimal 3 karakter).
+2. Tunggu sebentar; daftar saran lokasi akan muncul di bawah field.
+3. Pilih salah satu lokasi dari daftar saran.
+
+> **Penting:** Tombol "Simpan Perubahan" hanya aktif jika lokasi dikonfirmasi via GPS atau dipilih dari daftar saran. Mengetik bebas tanpa memilih dari daftar akan memunculkan pesan error di field dan menonaktifkan tombol simpan.
 
 ### Zona Waktu
 Pilih zona waktu sesuai lokasi masjid dari dropdown:
@@ -124,7 +144,7 @@ Pilih zona waktu sesuai lokasi masjid dari dropdown:
 | `Asia/Makassar` | WITA — Kalimantan Timur, Sulawesi, Bali, NTB, NTT |
 | `Asia/Jayapura` | WIT — Maluku, Papua |
 
-> Tekan tombol **"Simpan Perubahan"** setelah mengubah alamat atau zona waktu agar waktu sholat diperbarui.
+> Perubahan zona waktu di satu perangkat akan otomatis memperbarui waktu sholat di semua perangkat yang terhubung dalam hitungan detik (tanpa perlu restart).
 
 ---
 
@@ -133,7 +153,7 @@ Pilih zona waktu sesuai lokasi masjid dari dropdown:
 Di bagian **"Pengaturan Kutipan"**:
 
 - Ketik kutipan islami atau pesan yang ingin ditampilkan di layar utama.
-- Batas maksimum: **100 karakter**.
+- Batas maksimum: **150 karakter**.
 - Kutipan bisa berupa ayat Al-Qur'an, hadis, atau pesan kegiatan masjid.
 
 ---
@@ -173,7 +193,7 @@ Aplikasi mendukung hingga **5 gambar** yang ditampilkan bergantian di layar utam
 Di bagian **"Teks Berjalan"**:
 
 - Ketik pengumuman atau informasi yang ingin ditampilkan sebagai teks berjalan di bagian bawah layar.
-- Batas maksimum: **100 karakter**.
+- Batas maksimum: **200 karakter**.
 - Contoh: `Pengajian Rutin setiap Kamis malam pukul 19.30 WIB | Shalat Jumat pukul 12.00 WIB`
 
 ---
@@ -247,6 +267,7 @@ Aplikasi mendukung penggunaan di **beberapa perangkat sekaligus** (mis. TV ruang
 - Pengaturan masjid (nama, lokasi, logo, teks, gambar) **otomatis tersinkronisasi** setiap ~10 detik ke semua perangkat yang terhubung.
 - Perubahan yang disimpan di satu perangkat akan tampil di perangkat lain tanpa perlu restart.
 - Gambar yang diupload dari perangkat mana pun akan tampil di semua perangkat.
+- Jika **alamat atau zona waktu** diubah di satu perangkat, perangkat lain akan **langsung memperbarui waktu sholat** begitu sinkronisasi diterima — tanpa perlu membuka Admin atau menekan tombol apa pun.
 
 ### Kondisi Offline
 
@@ -269,9 +290,13 @@ Jika perangkat tidak terhubung ke internet:
 ## 15. Troubleshooting
 
 ### Waktu sholat tidak tampil / "XX:XX"
-- Pastikan alamat waktu sholat diisi dengan benar (contoh: `Jakarta, ID`).
+- Pastikan alamat waktu sholat sudah dikonfirmasi via GPS atau dipilih dari daftar saran — bukan diketik bebas.
 - Pastikan perangkat terhubung ke internet.
 - Tap "Simpan Perubahan" setelah mengubah alamat untuk memaksa refresh.
+
+### Tombol "Simpan Perubahan" tidak aktif
+- Field alamat mendeteksi bahwa teks telah diubah secara manual tanpa memilih dari daftar saran atau menggunakan GPS.
+- Solusi: ketik ulang nama lokasi dan pilih salah satu opsi dari dropdown yang muncul, atau tap ikon GPS untuk mengisi otomatis.
 
 ### Gambar tidak muncul di layar utama
 - Pastikan setidaknya satu gambar sudah diupload di bagian "Slide Gambar".

@@ -159,7 +159,7 @@ class MosqueDashboardViewModel(
     private fun startImageSlider() {
         viewModelScope.launch {
             while (true) {
-                delay(5000)
+                delay(10000)
                 if (!isSliderSyncing && _mosqueImages.value.isNotEmpty()) {
                     val currentImages = _mosqueImages.value
                     val currentIndex = _currentImageIndex.value
