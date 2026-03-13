@@ -12,7 +12,7 @@ import com.example.baiturrahman.data.local.entity.MosqueSettings
 
 @Database(
     entities = [MosqueSettings::class, MosqueImage::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -50,6 +50,19 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from version 3 to 4 - add per-prayer iqomah duration columns
+        private val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                Log.d(TAG, "Migrating database from version 3 to 4")
+                db.execSQL("ALTER TABLE mosque_settings ADD COLUMN iqomahSubuhMinutes INTEGER NOT NULL DEFAULT 10")
+                db.execSQL("ALTER TABLE mosque_settings ADD COLUMN iqomahDzuhurMinutes INTEGER NOT NULL DEFAULT 10")
+                db.execSQL("ALTER TABLE mosque_settings ADD COLUMN iqomahAsharMinutes INTEGER NOT NULL DEFAULT 10")
+                db.execSQL("ALTER TABLE mosque_settings ADD COLUMN iqomahMaghribMinutes INTEGER NOT NULL DEFAULT 10")
+                db.execSQL("ALTER TABLE mosque_settings ADD COLUMN iqomahIsyaMinutes INTEGER NOT NULL DEFAULT 10")
+                Log.d(TAG, "Migration 3→4 completed")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 Log.d(TAG, "Creating new database instance")
@@ -58,7 +71,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "baiturrahman_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance

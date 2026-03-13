@@ -14,5 +14,10 @@ data class MosqueSettings(
     val prayerTimezone: String = "Asia/Jakarta",
     val quoteText: String = "\"Sesungguhnya shalat itu mencegah dari perbuatan-perbuatan keji dan mungkar.\" (QS. Al-Ankabut: 45)",
     val marqueeText: String = "Lurus dan rapatkan shaf, mohon untuk mematikan alat komunikasi demi menjaga kesempurnaan sholat.",
-    val iqomahDurationMinutes: Int = 10
+    val iqomahDurationMinutes: Int = 10,
+    val iqomahSubuhMinutes: Int = 10,
+    val iqomahDzuhurMinutes: Int = 10,
+    val iqomahAsharMinutes: Int = 10,
+    val iqomahMaghribMinutes: Int = 10,
+    val iqomahIsyaMinutes: Int = 10
 )

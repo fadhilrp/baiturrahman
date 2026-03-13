@@ -47,8 +47,8 @@ fun MarqueeText(
     // Large default prevents a premature reset before onSizeChanged fires for long text
     var textWidthDp by remember { mutableIntStateOf(4000) }
 
-    // Target ~250 px/s regardless of screen density (14 ms per tick)
-    val speed = 3.5f / localDensity.density
+    // Target ~178 px/s regardless of screen density (14 ms per tick)
+    val speed = 2.5f / localDensity.density
 
     // Always start off-screen to the right, adapting to any screen size (TV, tablet, phone)
     val resetPosition = widthDp.value + 100f

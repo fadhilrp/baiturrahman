@@ -37,6 +37,11 @@ class MosqueSettingsRepository(
         quoteText: String,
         marqueeText: String,
         iqomahDurationMinutes: Int = 10,
+        iqomahSubuhMinutes: Int = 10,
+        iqomahDzuhurMinutes: Int = 10,
+        iqomahAsharMinutes: Int = 10,
+        iqomahMaghribMinutes: Int = 10,
+        iqomahIsyaMinutes: Int = 10,
         pushToRemote: Boolean = true
     ) {
         val settings = MosqueSettings(
@@ -47,7 +52,12 @@ class MosqueSettingsRepository(
             prayerTimezone = prayerTimezone,
             quoteText = quoteText,
             marqueeText = marqueeText,
-            iqomahDurationMinutes = iqomahDurationMinutes
+            iqomahDurationMinutes = iqomahDurationMinutes,
+            iqomahSubuhMinutes = iqomahSubuhMinutes,
+            iqomahDzuhurMinutes = iqomahDzuhurMinutes,
+            iqomahAsharMinutes = iqomahAsharMinutes,
+            iqomahMaghribMinutes = iqomahMaghribMinutes,
+            iqomahIsyaMinutes = iqomahIsyaMinutes
         )
         mosqueSettingsDao.insertSettings(settings)
         Log.d(TAG, "Settings saved to local DB")
@@ -63,7 +73,12 @@ class MosqueSettingsRepository(
                     prayerTimezone = prayerTimezone,
                     quoteText = quoteText,
                     marqueeText = marqueeText,
-                    iqomahDurationMinutes = iqomahDurationMinutes
+                    iqomahDurationMinutes = iqomahDurationMinutes,
+                    iqomahSubuhMinutes = iqomahSubuhMinutes,
+                    iqomahDzuhurMinutes = iqomahDzuhurMinutes,
+                    iqomahAsharMinutes = iqomahAsharMinutes,
+                    iqomahMaghribMinutes = iqomahMaghribMinutes,
+                    iqomahIsyaMinutes = iqomahIsyaMinutes
                 )
                 Log.d(TAG, "Settings pushed to remote")
             } catch (e: Exception) {
