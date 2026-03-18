@@ -96,10 +96,8 @@ import com.example.baiturrahman.ui.theme.LocalAppColors
 import com.example.baiturrahman.ui.theme.mosqueTextFieldColors
 import com.example.baiturrahman.ui.viewmodel.AuthViewModel
 import com.example.baiturrahman.ui.viewmodel.MosqueDashboardViewModel
-import com.example.baiturrahman.utils.AccountPreferences
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,7 +107,6 @@ fun AdminDashboard(
     onClose: () -> Unit
 ) {
     val c = LocalAppColors.current
-    val accountPreferences: AccountPreferences = koinInject()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -123,6 +120,7 @@ fun AdminDashboard(
     var iqomahAsharMinutes by remember { mutableStateOf(viewModel.iqomahAsharMinutes.value) }
     var iqomahMaghribMinutes by remember { mutableStateOf(viewModel.iqomahMaghribMinutes.value) }
     var iqomahIsyaMinutes by remember { mutableStateOf(viewModel.iqomahIsyaMinutes.value) }
+    var adzanOffsetMinutes by remember { mutableStateOf(viewModel.adzanOffsetMinutes.value) }
     val mosqueImages by viewModel.mosqueImages.collectAsState()
 
     var prayerAddress by remember { mutableStateOf(viewModel.prayerAddress.value) }
@@ -145,6 +143,7 @@ fun AdminDashboard(
     val savedIqomahAsharMinutes by viewModel.iqomahAsharMinutes.collectAsState()
     val savedIqomahMaghribMinutes by viewModel.iqomahMaghribMinutes.collectAsState()
     val savedIqomahIsyaMinutes by viewModel.iqomahIsyaMinutes.collectAsState()
+    val savedAdzanOffsetMinutes by viewModel.adzanOffsetMinutes.collectAsState()
 
     val isSaving by viewModel.isSaving.collectAsState()
     val isUploadingImage by viewModel.isUploadingImage.collectAsState()
@@ -154,7 +153,7 @@ fun AdminDashboard(
     val isOffline by viewModel.isOffline.collectAsState()
     val connectedDevices by viewModel.connectedDevices.collectAsState()
     val currentUsername: String? by authViewModel.currentUsername.collectAsState()
-    val isDarkTheme by accountPreferences.isDarkThemeFlow.collectAsState()
+    val isDarkTheme by viewModel.isDarkMode.collectAsState()
 
     val hasUnsavedChanges = mosqueName != savedMosqueName ||
         mosqueLocation != savedMosqueLocation ||
@@ -166,7 +165,8 @@ fun AdminDashboard(
         iqomahDzuhurMinutes != savedIqomahDzuhurMinutes ||
         iqomahAsharMinutes != savedIqomahAsharMinutes ||
         iqomahMaghribMinutes != savedIqomahMaghribMinutes ||
-        iqomahIsyaMinutes != savedIqomahIsyaMinutes
+        iqomahIsyaMinutes != savedIqomahIsyaMinutes ||
+        adzanOffsetMinutes != savedAdzanOffsetMinutes
 
     var showDiscardDialog by remember { mutableStateOf(false) }
 
@@ -419,6 +419,35 @@ fun AdminDashboard(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // Logout Button — top of page
+            Button(
+                onClick = { authViewModel.logout() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB71C1C)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Keluar", color = Color.White, fontSize = 16.sp)
+            }
+
+            // Theme Toggle
+            AdminSection(title = "Tema Tampilan") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Mode Gelap", color = c.textPrimary)
+                    Switch(
+                        checked = isDarkTheme,
+                        onCheckedChange = { viewModel.setDarkMode(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = EmeraldGreen,
+                            checkedTrackColor = EmeraldDark
+                        )
+                    )
+                }
+            }
+
             // Header Section
             AdminSection(title = "Pengaturan Header") {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -652,6 +681,53 @@ fun AdminDashboard(
                 }
             }
 
+            // Adzan Offset Section
+            AdminSection(title = "Penyesuaian Waktu Adzan") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Sesuaikan waktu adzan lebih awal atau lebih lambat. (-10 – +10 menit)",
+                        color = c.textSecondary, fontSize = 13.sp
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Offset Adzan", color = c.textPrimary, fontWeight = FontWeight.Medium)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { if (adzanOffsetMinutes > -10) adzanOffsetMinutes-- },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Remove,
+                                    contentDescription = "Kurangi",
+                                    tint = if (adzanOffsetMinutes > -10) EmeraldGreen else c.textSecondary
+                                )
+                            }
+                            Text(
+                                "${if (adzanOffsetMinutes > 0) "+" else ""}$adzanOffsetMinutes menit",
+                                color = EmeraldGreen,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.width(80.dp),
+                                textAlign = TextAlign.Center
+                            )
+                            IconButton(
+                                onClick = { if (adzanOffsetMinutes < 10) adzanOffsetMinutes++ },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = "Tambah",
+                                    tint = if (adzanOffsetMinutes < 10) EmeraldGreen else c.textSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Quote Section
             AdminSection(title = "Pengaturan Kutipan") {
                 OutlinedTextField(
@@ -808,25 +884,6 @@ fun AdminDashboard(
                 }
             }
 
-            // Theme Toggle Section
-            AdminSection(title = "Tema Tampilan") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Mode Gelap", color = c.textPrimary)
-                    Switch(
-                        checked = isDarkTheme,
-                        onCheckedChange = { accountPreferences.isDarkTheme = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = EmeraldGreen,
-                            checkedTrackColor = EmeraldDark
-                        )
-                    )
-                }
-            }
-
             // Connected Devices Section
             AdminSection(title = "Perangkat Terhubung") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -896,16 +953,6 @@ fun AdminDashboard(
                 Text("Ubah Kata Sandi", color = c.textPrimary)
             }
 
-            // Logout Button
-            Button(
-                onClick = { authViewModel.logout() },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB71C1C)),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Keluar", color = Color.White, fontSize = 16.sp)
-            }
-
             // Save settings button — pinned to very bottom
             Button(
                 onClick = {
@@ -921,6 +968,7 @@ fun AdminDashboard(
                         viewModel.updateIqomahAsharMinutes(iqomahAsharMinutes)
                         viewModel.updateIqomahMaghribMinutes(iqomahMaghribMinutes)
                         viewModel.updateIqomahIsyaMinutes(iqomahIsyaMinutes)
+                        viewModel.updateAdzanOffsetMinutes(adzanOffsetMinutes)
                         viewModel.saveAllSettings()
                         viewModel.fetchPrayerTimes()
                         snackbarHostState.showSnackbar("Pengaturan disimpan")

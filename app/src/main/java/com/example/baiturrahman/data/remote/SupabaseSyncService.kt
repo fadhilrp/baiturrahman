@@ -159,7 +159,9 @@ class SupabaseSyncService(
                             localSettings.iqomahDzuhurMinutes != remoteSettings.iqomahDzuhurMinutes ||
                             localSettings.iqomahAsharMinutes != remoteSettings.iqomahAsharMinutes ||
                             localSettings.iqomahMaghribMinutes != remoteSettings.iqomahMaghribMinutes ||
-                            localSettings.iqomahIsyaMinutes != remoteSettings.iqomahIsyaMinutes
+                            localSettings.iqomahIsyaMinutes != remoteSettings.iqomahIsyaMinutes ||
+                            localSettings.adzanOffsetMinutes != remoteSettings.adzanOffsetMinutes ||
+                            localSettings.isDarkMode != remoteSettings.isDarkMode
 
                         if (isDifferent) {
                             Log.d(TAG, "Settings changed — updating local DB")
@@ -178,8 +180,11 @@ class SupabaseSyncService(
                                 iqomahAsharMinutes = remoteSettings.iqomahAsharMinutes,
                                 iqomahMaghribMinutes = remoteSettings.iqomahMaghribMinutes,
                                 iqomahIsyaMinutes = remoteSettings.iqomahIsyaMinutes,
+                                adzanOffsetMinutes = remoteSettings.adzanOffsetMinutes,
+                                isDarkMode = remoteSettings.isDarkMode,
                                 pushToRemote = false
                             )
+                            accountPreferences.isDarkTheme = remoteSettings.isDarkMode
                             Log.d(TAG, "Settings synced")
                         }
                     }

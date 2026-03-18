@@ -190,7 +190,9 @@ class SupabasePostgresRepository {
         iqomahDzuhurMinutes: Int = 10,
         iqomahAsharMinutes: Int = 10,
         iqomahMaghribMinutes: Int = 10,
-        iqomahIsyaMinutes: Int = 10
+        iqomahIsyaMinutes: Int = 10,
+        adzanOffsetMinutes: Int = 0,
+        isDarkMode: Boolean = true
     ) {
         try {
             val params = buildJsonObject {
@@ -208,6 +210,8 @@ class SupabasePostgresRepository {
                 put("p_iqomah_ashar_minutes", iqomahAsharMinutes)
                 put("p_iqomah_maghrib_minutes", iqomahMaghribMinutes)
                 put("p_iqomah_isya_minutes", iqomahIsyaMinutes)
+                put("p_adzan_offset_minutes", adzanOffsetMinutes)
+                put("p_is_dark_mode", isDarkMode)
             }
             client.postgrest.rpc("upsert_settings_by_token", params)
             Log.d(TAG, "upsertSettingsByToken succeeded")

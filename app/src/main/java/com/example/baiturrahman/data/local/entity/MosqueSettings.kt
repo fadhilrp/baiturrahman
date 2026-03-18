@@ -19,5 +19,7 @@ data class MosqueSettings(
     val iqomahDzuhurMinutes: Int = 10,
     val iqomahAsharMinutes: Int = 10,
     val iqomahMaghribMinutes: Int = 10,
-    val iqomahIsyaMinutes: Int = 10
+    val iqomahIsyaMinutes: Int = 10,
+    val adzanOffsetMinutes: Int = 0,
+    val isDarkMode: Boolean = true
 )

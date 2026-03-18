@@ -12,7 +12,7 @@ import com.example.baiturrahman.data.local.entity.MosqueSettings
 
 @Database(
     entities = [MosqueSettings::class, MosqueImage::class],
-    version = 4,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -63,6 +63,24 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from version 4 to 5 - add adzan offset
+        private val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                Log.d(TAG, "Migrating database from version 4 to 5")
+                db.execSQL("ALTER TABLE mosque_settings ADD COLUMN adzanOffsetMinutes INTEGER NOT NULL DEFAULT 0")
+                Log.d(TAG, "Migration 4→5 completed")
+            }
+        }
+
+        // Migration from version 5 to 6 - add dark mode setting
+        private val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                Log.d(TAG, "Migrating database from version 5 to 6")
+                db.execSQL("ALTER TABLE mosque_settings ADD COLUMN isDarkMode INTEGER NOT NULL DEFAULT 1")
+                Log.d(TAG, "Migration 5→6 completed")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 Log.d(TAG, "Creating new database instance")
@@ -71,7 +89,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "baiturrahman_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance

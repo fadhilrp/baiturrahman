@@ -54,6 +54,12 @@ data class MosqueSettingsRemote(
     @SerialName("iqomah_isya_minutes")
     val iqomahIsyaMinutes: Int = 10,
 
+    @SerialName("adzan_offset_minutes")
+    val adzanOffsetMinutes: Int = 0,
+
+    @SerialName("is_dark_mode")
+    val isDarkMode: Boolean = true,
+
     @SerialName("updated_at")
     val updatedAt: String = ""
 )
