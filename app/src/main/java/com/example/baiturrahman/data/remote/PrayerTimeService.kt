@@ -16,9 +16,8 @@ interface PrayerTimeService {
         @Query("method") method: Int = 20,
         @Query("timezonestring") timezone: String,
         @Query("calendarMethod") calendarMethod: String = "UAQ",
-        // +2 min ihtiyat on every prayer time (Kemenag standard precautionary buffer).
         // Order: Imsak,Fajr,Sunrise,Dhuhr,Asr,Maghrib,Sunset,Isha,Midnight
-        @Query("tune") tune: String = "2,2,0,2,2,2,0,2,0"
+        @Query("tune") tune: String = "0,0,0,0,0,0,0,0,0"
     ): PrayerResponse
 
     /** Coordinate-based lookup — skips Aladhan's internal geocoding, always accurate. */
@@ -30,7 +29,7 @@ interface PrayerTimeService {
         @Query("method") method: Int = 20,
         @Query("timezonestring") timezone: String,
         @Query("calendarMethod") calendarMethod: String = "UAQ",
-        @Query("tune") tune: String = "2,2,0,2,2,2,0,2,0"
+        @Query("tune") tune: String = "0,0,0,0,0,0,0,0,0"
     ): PrayerResponse
 }
 

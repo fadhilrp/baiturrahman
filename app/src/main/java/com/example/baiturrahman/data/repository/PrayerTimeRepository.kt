@@ -11,11 +11,13 @@ class PrayerTimeRepository {
 
     suspend fun getPrayerTimes(
         address: String = "Lebak Bulus, Jakarta, ID",
-        timezone: String = "Asia/Jakarta"
+        timezone: String = "Asia/Jakarta",
+        adzanOffsetMinutes: Int = 0
     ): Result<PrayerData> = withContext(Dispatchers.IO) {
         try {
             val today = DateTimeUtils.formatDateForApi()
-            Result.success(api.getPrayerTimesByAddress(date = today, address = address, timezone = timezone).data)
+            val tune = buildTuneString(adzanOffsetMinutes)
+            Result.success(api.getPrayerTimesByAddress(date = today, address = address, timezone = timezone, tune = tune).data)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -24,14 +26,20 @@ class PrayerTimeRepository {
     suspend fun getPrayerTimesByCoords(
         latitude: Double,
         longitude: Double,
-        timezone: String = "Asia/Jakarta"
+        timezone: String = "Asia/Jakarta",
+        adzanOffsetMinutes: Int = 0
     ): Result<PrayerData> = withContext(Dispatchers.IO) {
         try {
             val today = DateTimeUtils.formatDateForApi()
-            Result.success(api.getPrayerTimesByCoords(date = today, latitude = latitude, longitude = longitude, timezone = timezone).data)
+            val tune = buildTuneString(adzanOffsetMinutes)
+            Result.success(api.getPrayerTimesByCoords(date = today, latitude = latitude, longitude = longitude, timezone = timezone, tune = tune).data)
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private fun buildTuneString(offset: Int): String {
+        return "$offset,$offset,0,$offset,$offset,$offset,0,$offset,0"
     }
 }
 

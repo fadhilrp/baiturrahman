@@ -408,6 +408,9 @@ END; $$;
 ### 6.11 `upsert_settings_by_token`
 
 ```sql
+-- First, add the column if not exists:
+-- ALTER TABLE mosque_settings ADD COLUMN IF NOT EXISTS is_dark_mode BOOLEAN NOT NULL DEFAULT TRUE;
+
 CREATE OR REPLACE FUNCTION upsert_settings_by_token(
     p_session_token TEXT,
     p_mosque_name TEXT,
@@ -416,7 +419,15 @@ CREATE OR REPLACE FUNCTION upsert_settings_by_token(
     p_prayer_address TEXT,
     p_prayer_timezone TEXT,
     p_quote_text TEXT,
-    p_marquee_text TEXT
+    p_marquee_text TEXT,
+    p_iqomah_duration_minutes INTEGER DEFAULT 10,
+    p_iqomah_subuh_minutes INTEGER DEFAULT 10,
+    p_iqomah_dzuhur_minutes INTEGER DEFAULT 10,
+    p_iqomah_ashar_minutes INTEGER DEFAULT 10,
+    p_iqomah_maghrib_minutes INTEGER DEFAULT 10,
+    p_iqomah_isya_minutes INTEGER DEFAULT 10,
+    p_adzan_offset_minutes INTEGER DEFAULT 0,
+    p_is_dark_mode BOOLEAN DEFAULT TRUE
 ) RETURNS VOID
 LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
@@ -431,11 +442,17 @@ BEGIN
 
     INSERT INTO mosque_settings (
         account_id, mosque_name, mosque_location, logo_image,
-        prayer_address, prayer_timezone, quote_text, marquee_text
+        prayer_address, prayer_timezone, quote_text, marquee_text,
+        iqomah_duration_minutes, iqomah_subuh_minutes, iqomah_dzuhur_minutes,
+        iqomah_ashar_minutes, iqomah_maghrib_minutes, iqomah_isya_minutes,
+        adzan_offset_minutes, is_dark_mode
     )
     VALUES (
         v_account_id, p_mosque_name, p_mosque_location, p_logo_image,
-        p_prayer_address, p_prayer_timezone, p_quote_text, p_marquee_text
+        p_prayer_address, p_prayer_timezone, p_quote_text, p_marquee_text,
+        p_iqomah_duration_minutes, p_iqomah_subuh_minutes, p_iqomah_dzuhur_minutes,
+        p_iqomah_ashar_minutes, p_iqomah_maghrib_minutes, p_iqomah_isya_minutes,
+        p_adzan_offset_minutes, p_is_dark_mode
     )
     ON CONFLICT (account_id) DO UPDATE SET
         mosque_name = EXCLUDED.mosque_name,
@@ -445,6 +462,14 @@ BEGIN
         prayer_timezone = EXCLUDED.prayer_timezone,
         quote_text = EXCLUDED.quote_text,
         marquee_text = EXCLUDED.marquee_text,
+        iqomah_duration_minutes = EXCLUDED.iqomah_duration_minutes,
+        iqomah_subuh_minutes = EXCLUDED.iqomah_subuh_minutes,
+        iqomah_dzuhur_minutes = EXCLUDED.iqomah_dzuhur_minutes,
+        iqomah_ashar_minutes = EXCLUDED.iqomah_ashar_minutes,
+        iqomah_maghrib_minutes = EXCLUDED.iqomah_maghrib_minutes,
+        iqomah_isya_minutes = EXCLUDED.iqomah_isya_minutes,
+        adzan_offset_minutes = EXCLUDED.adzan_offset_minutes,
+        is_dark_mode = EXCLUDED.is_dark_mode,
         updated_at = NOW();
 END; $$;
 ```
@@ -580,7 +605,7 @@ GRANT EXECUTE ON FUNCTION change_password(TEXT, TEXT, TEXT) TO anon;
 GRANT EXECUTE ON FUNCTION update_session_last_seen(TEXT) TO anon;
 GRANT EXECUTE ON FUNCTION get_active_sessions(TEXT) TO anon;
 GRANT EXECUTE ON FUNCTION get_settings_by_token(TEXT) TO anon;
-GRANT EXECUTE ON FUNCTION upsert_settings_by_token(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION upsert_settings_by_token(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN) TO anon;
 GRANT EXECUTE ON FUNCTION get_images_by_token(TEXT) TO anon;
 GRANT EXECUTE ON FUNCTION upload_image_atomic(TEXT, UUID, INTEGER, BIGINT, TEXT, TEXT, TEXT) TO anon;
 GRANT EXECUTE ON FUNCTION delete_image_and_reorder(TEXT, UUID) TO anon;

@@ -154,7 +154,14 @@ class SupabaseSyncService(
                             localSettings.prayerTimezone != remoteSettings.prayerTimezone ||
                             localSettings.quoteText != remoteSettings.quoteText ||
                             localSettings.marqueeText != remoteSettings.marqueeText ||
-                            localSettings.iqomahDurationMinutes != remoteSettings.iqomahDurationMinutes
+                            localSettings.iqomahDurationMinutes != remoteSettings.iqomahDurationMinutes ||
+                            localSettings.iqomahSubuhMinutes != remoteSettings.iqomahSubuhMinutes ||
+                            localSettings.iqomahDzuhurMinutes != remoteSettings.iqomahDzuhurMinutes ||
+                            localSettings.iqomahAsharMinutes != remoteSettings.iqomahAsharMinutes ||
+                            localSettings.iqomahMaghribMinutes != remoteSettings.iqomahMaghribMinutes ||
+                            localSettings.iqomahIsyaMinutes != remoteSettings.iqomahIsyaMinutes ||
+                            localSettings.adzanOffsetMinutes != remoteSettings.adzanOffsetMinutes ||
+                            localSettings.isDarkMode != remoteSettings.isDarkMode
 
                         if (isDifferent) {
                             Log.d(TAG, "Settings changed — updating local DB")
@@ -168,8 +175,16 @@ class SupabaseSyncService(
                                 quoteText = remoteSettings.quoteText,
                                 marqueeText = remoteSettings.marqueeText,
                                 iqomahDurationMinutes = remoteSettings.iqomahDurationMinutes,
+                                iqomahSubuhMinutes = remoteSettings.iqomahSubuhMinutes,
+                                iqomahDzuhurMinutes = remoteSettings.iqomahDzuhurMinutes,
+                                iqomahAsharMinutes = remoteSettings.iqomahAsharMinutes,
+                                iqomahMaghribMinutes = remoteSettings.iqomahMaghribMinutes,
+                                iqomahIsyaMinutes = remoteSettings.iqomahIsyaMinutes,
+                                adzanOffsetMinutes = remoteSettings.adzanOffsetMinutes,
+                                isDarkMode = remoteSettings.isDarkMode,
                                 pushToRemote = false
                             )
+                            accountPreferences.isDarkTheme = remoteSettings.isDarkMode
                             Log.d(TAG, "Settings synced")
                         }
                     }

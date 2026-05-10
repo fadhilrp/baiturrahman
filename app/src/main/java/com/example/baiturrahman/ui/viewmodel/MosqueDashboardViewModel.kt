@@ -68,6 +68,27 @@ class MosqueDashboardViewModel(
     private val _iqomahDurationMinutes = MutableStateFlow(10)
     val iqomahDurationMinutes: StateFlow<Int> = _iqomahDurationMinutes
 
+    private val _iqomahSubuhMinutes = MutableStateFlow(10)
+    val iqomahSubuhMinutes: StateFlow<Int> = _iqomahSubuhMinutes
+
+    private val _iqomahDzuhurMinutes = MutableStateFlow(10)
+    val iqomahDzuhurMinutes: StateFlow<Int> = _iqomahDzuhurMinutes
+
+    private val _iqomahAsharMinutes = MutableStateFlow(10)
+    val iqomahAsharMinutes: StateFlow<Int> = _iqomahAsharMinutes
+
+    private val _iqomahMaghribMinutes = MutableStateFlow(10)
+    val iqomahMaghribMinutes: StateFlow<Int> = _iqomahMaghribMinutes
+
+    private val _iqomahIsyaMinutes = MutableStateFlow(10)
+    val iqomahIsyaMinutes: StateFlow<Int> = _iqomahIsyaMinutes
+
+    private val _adzanOffsetMinutes = MutableStateFlow(0)
+    val adzanOffsetMinutes: StateFlow<Int> = _adzanOffsetMinutes
+
+    private val _isDarkMode = MutableStateFlow(true)
+    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+
     private val _logoImage = MutableStateFlow<String?>(null)
     val logoImage: StateFlow<String?> = _logoImage
 
@@ -134,7 +155,16 @@ class MosqueDashboardViewModel(
                     _quoteText.value = it.quoteText
                     _marqueeText.value = it.marqueeText
                     _iqomahDurationMinutes.value = it.iqomahDurationMinutes
-                    if (addressChanged || timezoneChanged) {
+                    _iqomahSubuhMinutes.value = it.iqomahSubuhMinutes
+                    _iqomahDzuhurMinutes.value = it.iqomahDzuhurMinutes
+                    _iqomahAsharMinutes.value = it.iqomahAsharMinutes
+                    _iqomahMaghribMinutes.value = it.iqomahMaghribMinutes
+                    _iqomahIsyaMinutes.value = it.iqomahIsyaMinutes
+                    val offsetChanged = it.adzanOffsetMinutes != _adzanOffsetMinutes.value
+                    _adzanOffsetMinutes.value = it.adzanOffsetMinutes
+                    _isDarkMode.value = it.isDarkMode
+                    accountPreferences.isDarkTheme = it.isDarkMode
+                    if (addressChanged || timezoneChanged || offsetChanged) {
                         fetchPrayerTimes()
                     }
                 }
@@ -187,9 +217,9 @@ class MosqueDashboardViewModel(
             val lat = accountPreferences.prayerLatitude
             val lon = accountPreferences.prayerLongitude
             val result = if (lat != null && lon != null) {
-                prayerTimeRepository.getPrayerTimesByCoords(lat, lon, _prayerTimezone.value)
+                prayerTimeRepository.getPrayerTimesByCoords(lat, lon, _prayerTimezone.value, _adzanOffsetMinutes.value)
             } else {
-                prayerTimeRepository.getPrayerTimes(_prayerAddress.value, _prayerTimezone.value)
+                prayerTimeRepository.getPrayerTimes(_prayerAddress.value, _prayerTimezone.value, _adzanOffsetMinutes.value)
             }
             result.fold(
                 onSuccess = { prayerData ->
@@ -217,7 +247,14 @@ class MosqueDashboardViewModel(
                 prayerTimezone = _prayerTimezone.value,
                 quoteText = _quoteText.value,
                 marqueeText = _marqueeText.value,
-                iqomahDurationMinutes = _iqomahDurationMinutes.value
+                iqomahDurationMinutes = _iqomahDurationMinutes.value,
+                iqomahSubuhMinutes = _iqomahSubuhMinutes.value,
+                iqomahDzuhurMinutes = _iqomahDzuhurMinutes.value,
+                iqomahAsharMinutes = _iqomahAsharMinutes.value,
+                iqomahMaghribMinutes = _iqomahMaghribMinutes.value,
+                iqomahIsyaMinutes = _iqomahIsyaMinutes.value,
+                adzanOffsetMinutes = _adzanOffsetMinutes.value,
+                isDarkMode = _isDarkMode.value
             )
         }
     }
@@ -240,7 +277,19 @@ class MosqueDashboardViewModel(
     fun updateMarqueeLines(lines: List<String>) {
         _marqueeText.value = lines.filter { it.isNotBlank() }.joinToString("|||")
     }
-    fun updateIqomahDurationMinutes(minutes: Int) { _iqomahDurationMinutes.value = minutes.coerceIn(5, 15) }
+    fun updateIqomahDurationMinutes(minutes: Int) { _iqomahDurationMinutes.value = minutes.coerceIn(3, 20) }
+    fun updateIqomahSubuhMinutes(minutes: Int) { _iqomahSubuhMinutes.value = minutes.coerceIn(3, 20) }
+    fun updateIqomahDzuhurMinutes(minutes: Int) { _iqomahDzuhurMinutes.value = minutes.coerceIn(3, 20) }
+    fun updateIqomahAsharMinutes(minutes: Int) { _iqomahAsharMinutes.value = minutes.coerceIn(3, 20) }
+    fun updateIqomahMaghribMinutes(minutes: Int) { _iqomahMaghribMinutes.value = minutes.coerceIn(3, 20) }
+    fun updateIqomahIsyaMinutes(minutes: Int) { _iqomahIsyaMinutes.value = minutes.coerceIn(3, 20) }
+    fun updateAdzanOffsetMinutes(minutes: Int) { _adzanOffsetMinutes.value = minutes.coerceIn(-10, 10) }
+
+    fun setDarkMode(enabled: Boolean) {
+        _isDarkMode.value = enabled
+        accountPreferences.isDarkTheme = enabled
+        saveAllSettings()
+    }
 
     fun updateLogoImage(uri: String) {
         viewModelScope.launch {
