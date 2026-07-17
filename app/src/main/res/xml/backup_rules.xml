@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude session credentials from Auto Backup (API 23–30) -->
+    <exclude domain="sharedpref" path="account_settings.xml" />
+    <exclude domain="sharedpref" path="account_settings_enc.xml" />
+</full-backup-content>

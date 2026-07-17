@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <!-- Exclude session credentials from cloud backup and device transfer (API 31+) -->
+    <cloud-backup>
+        <exclude domain="sharedpref" path="account_settings.xml" />
+        <exclude domain="sharedpref" path="account_settings_enc.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="account_settings.xml" />
+        <exclude domain="sharedpref" path="account_settings_enc.xml" />
+    </device-transfer>
+</data-extraction-rules>
