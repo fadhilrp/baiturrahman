@@ -3,13 +3,15 @@ package com.example.baiturrahman.data.remote
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import com.example.baiturrahman.BuildConfig
 import retrofit2.converter.gson.GsonConverterFactory
 
 // Create Retrofit instance
 object RetrofitClient {
     private const val BASE_URL = "https://api.aladhan.com/"
     private val logger = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+                else HttpLoggingInterceptor.Level.NONE
     }
 
     private val okHttpClient = OkHttpClient.Builder()

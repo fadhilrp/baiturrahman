@@ -7,6 +7,7 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.util.DebugLogger
+import com.example.baiturrahman.BuildConfig
 import com.example.baiturrahman.data.remote.SupabaseClient
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp as OkHttpEngine
@@ -32,16 +33,16 @@ class BaiturrahmanApp : Application(), SingletonImageLoader.Factory {
 
         try {
             // Initialize Supabase client
-            Log.d("BaiturrahmanApp", "Initializing Supabase...")
+            if (BuildConfig.DEBUG) Log.d("BaiturrahmanApp", "Initializing Supabase...")
             SupabaseClient.client
-            Log.d("BaiturrahmanApp", "Supabase initialized")
+            if (BuildConfig.DEBUG) Log.d("BaiturrahmanApp", "Supabase initialized")
 
             // Validate session token on startup — clear if invalid
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     val accountRepository = get<AccountRepository>()
                     val valid = accountRepository.validateAndClearIfInvalid()
-                    Log.d("BaiturrahmanApp", "Session valid: $valid")
+                    if (BuildConfig.DEBUG) Log.d("BaiturrahmanApp", "Session valid: $valid")
                 } catch (e: Exception) {
                     Log.e("BaiturrahmanApp", "Session validation error", e)
                 }
@@ -60,7 +61,7 @@ class BaiturrahmanApp : Application(), SingletonImageLoader.Factory {
         }
         return ImageLoader.Builder(context)
             .components { add(KtorNetworkFetcherFactory(httpClient)) }
-            .logger(DebugLogger())
+            .apply { if (BuildConfig.DEBUG) logger(DebugLogger()) }
             .build()
     }
 }
