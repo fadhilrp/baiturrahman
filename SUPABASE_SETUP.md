@@ -116,20 +116,35 @@ DROP POLICY IF EXISTS "Allow anon delete from mosque_images" ON mosque_images;
 
 ## 5. Storage Bucket
 
-The `mosque-images` bucket stays the same (logos and images).
+The `mosque-images` bucket holds both the logos (`logos/`) and the slider images
+(`mosque-images/`). A rebuilt project starts with **no** buckets, so this section must be run —
+skipping it makes every logo and slider upload fail with `Bucket not found`, even though all the
+tables and RPCs above are healthy.
 
-### 5.1 Create bucket (if not exists)
-
-1. Supabase Dashboard → Storage → Create bucket: `mosque-images`
-2. Toggle **Public bucket: ON**
-
-### 5.2 Storage policies (if not already set)
+Run this in the SQL editor along with the rest of this document. It is idempotent — safe to re-run.
 
 ```sql
+-- Bucket (public: objects are served via publicUrl())
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('mosque-images', 'mosque-images', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Policies — dropped first so this block is re-runnable
+DROP POLICY IF EXISTS "Public read" ON storage.objects;
+DROP POLICY IF EXISTS "Anon upload" ON storage.objects;
+DROP POLICY IF EXISTS "Anon update" ON storage.objects;
+DROP POLICY IF EXISTS "Anon delete" ON storage.objects;
+
 CREATE POLICY "Public read" ON storage.objects FOR SELECT TO public USING (bucket_id = 'mosque-images');
 CREATE POLICY "Anon upload" ON storage.objects FOR INSERT TO anon WITH CHECK (bucket_id = 'mosque-images');
 CREATE POLICY "Anon update" ON storage.objects FOR UPDATE TO anon USING (bucket_id = 'mosque-images');
 CREATE POLICY "Anon delete" ON storage.objects FOR DELETE TO anon USING (bucket_id = 'mosque-images');
+```
+
+Verify the bucket exists (expect a row for `mosque-images`, not an empty result):
+
+```sql
+SELECT id, public FROM storage.buckets WHERE id = 'mosque-images';
 ```
 
 ---

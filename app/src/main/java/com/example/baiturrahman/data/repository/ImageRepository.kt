@@ -92,8 +92,10 @@ class ImageRepository(
                 UploadResult(publicUrl = publicUrl, supabaseId = imageId)
 
             } catch (e: Exception) {
+                // Rethrow so the caller can surface the reason (e.g. "Bucket not found")
+                // instead of failing silently. null is reserved for the precondition cases above.
                 Log.e(TAG, "Upload error", e)
-                null
+                throw e
             }
         }
     }
@@ -167,7 +169,7 @@ class ImageRepository(
 
             } catch (e: Exception) {
                 Log.e(TAG, "Logo upload error", e)
-                null
+                throw e
             }
         }
     }
