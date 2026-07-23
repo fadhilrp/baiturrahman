@@ -199,6 +199,13 @@ fun AdminDashboard(
         }
     }
 
+    // Logo / image upload error: show snackbar
+    LaunchedEffect(Unit) {
+        viewModel.uploadErrorEvent.collect { msg ->
+            snackbarHostState.showSnackbar(msg)
+        }
+    }
+
     // Intercept system back when there are unsaved changes
     BackHandler(enabled = !showChangePassword && hasUnsavedChanges) {
         showDiscardDialog = true
@@ -750,7 +757,7 @@ fun AdminDashboard(
             }
 
             // Mosque Images Section
-            AdminSection(title = "Slide Gambar (640 x 410) (Maks 10)") {
+            AdminSection(title = "Slide Gambar (640 x 410) (Maks ${MosqueDashboardViewModel.MAX_MOSQUE_IMAGES})") {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
                         "Gambar yang diupload otomatis tersinkronisasi ke semua perangkat.",
@@ -800,7 +807,7 @@ fun AdminDashboard(
                         }
                     }
 
-                    if (mosqueImages.size < 10) {
+                    if (mosqueImages.size < MosqueDashboardViewModel.MAX_MOSQUE_IMAGES) {
                         Button(
                             onClick = { checkAndRequestPermissions() },
                             enabled = !isUploadingImage,
@@ -819,11 +826,16 @@ fun AdminDashboard(
                             } else {
                                 Icon(Icons.Default.Add, "Tambah")
                                 Spacer(Modifier.width(8.dp))
-                                Text("Tambah Gambar (${mosqueImages.size}/10)")
+                                Text("Tambah Gambar (${mosqueImages.size}/${MosqueDashboardViewModel.MAX_MOSQUE_IMAGES})")
                             }
                         }
                     } else {
-                        Text("Jumlah maksimum gambar tercapai (10/10)", color = c.textSecondary, fontSize = 14.sp)
+                        Text(
+                            "Jumlah maksimum gambar tercapai " +
+                                "(${MosqueDashboardViewModel.MAX_MOSQUE_IMAGES}/${MosqueDashboardViewModel.MAX_MOSQUE_IMAGES})",
+                            color = c.textSecondary,
+                            fontSize = 14.sp
+                        )
                     }
                 }
             }

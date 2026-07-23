@@ -21,6 +21,7 @@ tvMaterial = "1.0.1"
 lifecycleRuntimeKtx = "2.9.2"
 activityCompose = "1.10.1"
 supabaseKt = "3.2.2"
+securityCrypto = "1.1.0-alpha06"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -64,6 +65,7 @@ postgrest-kt = { module = "io.github.jan-tennert.supabase:postgrest-kt", version
 realtime-kt = { module = "io.github.jan-tennert.supabase:realtime-kt", version.ref = "supabaseKt" }
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 storage-kt = { module = "io.github.jan-tennert.supabase:storage-kt", version.ref = "supabaseKt" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

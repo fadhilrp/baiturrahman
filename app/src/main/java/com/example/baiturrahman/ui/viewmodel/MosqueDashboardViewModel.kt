@@ -41,6 +41,9 @@ class MosqueDashboardViewModel(
 
     companion object {
         private const val TAG = "MosqueDashboardViewModel"
+
+        /** Maximum number of slider images. Shared with AdminDashboard so the cap and the UI can't drift. */
+        const val MAX_MOSQUE_IMAGES = 10
     }
 
     private val _uiState = MutableStateFlow(MosqueDashboardUiState())
@@ -305,9 +308,11 @@ class MosqueDashboardViewModel(
                     saveAllSettingsInternal()
                 } else {
                     Log.e(TAG, "Logo upload failed")
+                    _uploadErrorEvent.emit("Gagal mengunggah logo: file tidak dapat dibaca")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating logo", e)
+                _uploadErrorEvent.emit("Gagal mengunggah logo: ${e.message}")
             } finally {
                 _isUploadingLogo.value = false
             }
@@ -331,8 +336,11 @@ class MosqueDashboardViewModel(
     }
 
     fun addMosqueImage(uri: String) {
-        if (_mosqueImages.value.size >= 5) {
+        if (_mosqueImages.value.size >= MAX_MOSQUE_IMAGES) {
             Log.w(TAG, "Max images reached")
+            viewModelScope.launch {
+                _uploadErrorEvent.emit("Jumlah maksimum gambar tercapai ($MAX_MOSQUE_IMAGES/$MAX_MOSQUE_IMAGES)")
+            }
             return
         }
         viewModelScope.launch {
@@ -351,11 +359,13 @@ class MosqueDashboardViewModel(
                         settingsRepository.addMosqueImage(result.publicUrl, result.supabaseId)
                     } else {
                         Log.e(TAG, "Image upload failed")
+                        _uploadErrorEvent.emit("Gagal mengunggah gambar: file tidak dapat dibaca")
                     }
                 }
                 saveAllSettingsInternal()
             } catch (e: Exception) {
                 Log.e(TAG, "Error adding image", e)
+                _uploadErrorEvent.emit("Gagal mengunggah gambar: ${e.message}")
             } finally {
                 _isUploadingImage.value = false
             }
@@ -414,6 +424,10 @@ class MosqueDashboardViewModel(
     /** One-shot event: emits a user-facing error message for location failures. */
     private val _locationErrorEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val locationErrorEvent = _locationErrorEvent.asSharedFlow()
+
+    /** One-shot event: emits a user-facing error message for logo/image upload failures. */
+    private val _uploadErrorEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val uploadErrorEvent = _uploadErrorEvent.asSharedFlow()
 
     private var locationSearchJob: Job? = null
 

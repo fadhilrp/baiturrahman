@@ -4,17 +4,19 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
 import androidx.core.content.edit
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
 
 class AccountPreferences(context: Context) {
-    private val prefs: SharedPreferences = context.getSharedPreferences(
-        "account_settings", Context.MODE_PRIVATE
-    )
 
     companion object {
+        private const val PLAIN_PREFS_NAME = "account_settings"
+        private const val ENC_PREFS_NAME = "account_settings_enc"
+
         private const val KEY_SESSION_TOKEN = "session_token"
         private const val KEY_ACCOUNT_ID = "account_id"
         private const val KEY_DEVICE_IDENTIFIER = "device_identifier"
@@ -25,6 +27,25 @@ class AccountPreferences(context: Context) {
         // Stored as Long bits for full Double precision.
         private const val KEY_PRAYER_LATITUDE = "prayer_latitude"
         private const val KEY_PRAYER_LONGITUDE = "prayer_longitude"
+    }
+
+    private val masterKey = MasterKey.Builder(context)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
+
+    private val prefs: SharedPreferences = EncryptedSharedPreferences.create(
+        context,
+        ENC_PREFS_NAME,
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
+
+    init {
+        // One-time migration from plain SharedPreferences on app update.
+        // Copies non-sensitive fields; session token is intentionally not migrated
+        // so the user re-authenticates once after the upgrade.
+        migratePlainPrefsIfNeeded(context)
     }
 
     /** Last GPS latitude used for prayer time calculation. Null if not set or cleared. */
@@ -109,4 +130,21 @@ class AccountPreferences(context: Context) {
     }
 
     fun isLoggedIn(): Boolean = prefs.getString(KEY_SESSION_TOKEN, null) != null
+
+    private fun migratePlainPrefsIfNeeded(context: Context) {
+        val plain = context.getSharedPreferences(PLAIN_PREFS_NAME, Context.MODE_PRIVATE)
+        val oldDeviceId = plain.getString(KEY_DEVICE_IDENTIFIER, null) ?: return
+        if (prefs.contains(KEY_DEVICE_IDENTIFIER)) return
+
+        prefs.edit {
+            putString(KEY_DEVICE_IDENTIFIER, oldDeviceId)
+            plain.getString(KEY_DEVICE_LABEL, null)?.let { putString(KEY_DEVICE_LABEL, it) }
+            putBoolean(KEY_DARK_THEME, plain.getBoolean(KEY_DARK_THEME, true))
+            if (plain.contains(KEY_PRAYER_LATITUDE))
+                putLong(KEY_PRAYER_LATITUDE, plain.getLong(KEY_PRAYER_LATITUDE, 0L))
+            if (plain.contains(KEY_PRAYER_LONGITUDE))
+                putLong(KEY_PRAYER_LONGITUDE, plain.getLong(KEY_PRAYER_LONGITUDE, 0L))
+        }
+        plain.edit { clear() }
+    }
 }
